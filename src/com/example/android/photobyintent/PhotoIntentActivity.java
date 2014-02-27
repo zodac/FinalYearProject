@@ -3,28 +3,28 @@ package com.example.android.photobyintent;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-
+import java.util.Locale;
+/*
 import org.opencv.android.Utils;
+import org.opencv.core.CvException;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
+import org.opencv.core.Scalar;
 import org.opencv.highgui.Highgui;
 import org.opencv.imgproc.Imgproc;
-
+*/
+import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.Dialog;
-import android.app.DialogFragment;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.MediaMetadataRetriever;
@@ -40,9 +40,11 @@ import android.widget.ImageView;
 import android.widget.Toast;
 import android.widget.VideoView;
 
-
 public class PhotoIntentActivity extends Activity {
-
+	
+	private String appName = "KeyAnalyser";
+	private String storageFolder = "/" + appName + "_tmp"; // /KeyAnalyser_tmp
+	
 	private static final int ACTION_TAKE_PHOTO_B = 1;
 	private static final int ACTION_TAKE_PHOTO_S = 2;
 	private static final int ACTION_TAKE_VIDEO = 3;
@@ -91,6 +93,7 @@ public class PhotoIntentActivity extends Activity {
 		
 		return storageDir;
 	}
+	@SuppressLint("SimpleDateFormat")
 	private File createImageFile() throws IOException {
 		// Create an image file name
 		String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
@@ -181,85 +184,115 @@ public class PhotoIntentActivity extends Activity {
 	
 	private void dispatchProcVideoIntent() throws IOException{
 		
+		//Activity.requestWindowFeature(Window.FEATURE_PROGRESS); 
 		//Variables
-		Toast toast1 = Toast.makeText(getApplicationContext(), "Beginning method...", Toast.LENGTH_SHORT);
-		Toast toast2 = Toast.makeText(getApplicationContext(), "Finished!", Toast.LENGTH_SHORT);
-		int image = 1, loop = 0;
-		
-		toast1.show();
-		
-		//Load video file
-		File videoPath = new File(Environment.getExternalStorageDirectory(), "01.mp4");
+		Toast toast = Toast.makeText(getApplicationContext(), "Processing complete!", Toast.LENGTH_SHORT);
+		int image = 1;
+
+		File videoPath = new File(Environment.getExternalStorageDirectory(), "KeyAnalyser_tmp/video.mp4");
 		String video = videoPath.getAbsolutePath();
 		MediaMetadataRetriever vidFile = new MediaMetadataRetriever();
 		vidFile.setDataSource(video);
 		
 		//if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()))
 			//If I feel like being responsible
-				//IF
+				//IF :P
 		
-		//Create folder to store images
-		String newFolder = "/PhotoIntentStorage";
+		//Create folder to store images		
 		String extStorageDirectory = Environment.getExternalStorageDirectory().toString();
-		File myNewFolder = new File(extStorageDirectory + newFolder);
-		myNewFolder.mkdir();
+		File newFolder = new File(extStorageDirectory + storageFolder + File.separator + "tmp_images");
+		newFolder.mkdir();
 		
+		String value = vidFile.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+		long vidLength = (Long.parseLong(value)/1000); //Returns milliseconds - divide by 1,000
 		
-		int vidLength = MediaMetadataRetriever.METADATA_KEY_DURATION;
-		
-		do {
-			Bitmap bmp = vidFile.getFrameAtTime(loop*100000);
-			//Problem with precision - only able to get updated frame every ~2s
-				//Will another video format help?
+		for(int i = 0; i <= 10*vidLength; i++, image++) //10*vidLength since I'm getting frames every 1/10th sec
+		{
+			Bitmap bmp = vidFile.getFrameAtTime(100000*i, MediaMetadataRetriever.OPTION_CLOSEST);
 			
-			ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-			bmp.compress(Bitmap.CompressFormat.PNG, 100, bytes);
-			File f = new File(Environment.getExternalStorageDirectory() + newFolder + File.separator + image + ".png");
-			f.createNewFile();
-			FileOutputStream fo = new FileOutputStream(f);
-			fo.write(bytes.toByteArray());
-			bytes.flush();
-			
-			image++;
-			loop++;
-			
-		} while (loop <= 10*vidLength);
+			if(bmp != null)
+			{
+				ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+				bmp.compress(Bitmap.CompressFormat.PNG, 100, bytes);
+				File f = new File(Environment.getExternalStorageDirectory() + storageFolder + File.separator + "tmp_images" + File.separator + String.format(Locale.ENGLISH, "%03d", image) + ".png");
+				f.createNewFile();
+				FileOutputStream fo = new FileOutputStream(f);
+				bytes.writeTo(fo);
+
+				bytes.flush();
+				bytes.close();
+				bytes.reset();
+				fo.close();
+			}
+			else if (bmp == null)
+				break;
+		}
 	
+		vidFile.release();
+		image = 0;
 		
-		/***
-		Bitmap bmp1 = vidFile.getFrameAtTime(1000000);
-		Bitmap bmp2 = vidFile.getFrameAtTime(5000000);	
+		//setContentView(R.layout.main2); //Switch to layout two - button with white text?
+/*
+		File imagePath = new File(Environment.getExternalStorageDirectory(), "KeyAnalyser/test_001.png");
+		String img = imagePath.getAbsolutePath();
 		
-		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-		bmp1.compress(Bitmap.CompressFormat.PNG, 100, bytes);
-		File f = new File(Environment.getExternalStorageDirectory() + File.separator + "PhotoIntent Files" + File.separator + image + ".png");
-		f.createNewFile();
-		FileOutputStream fo = new FileOutputStream(f);
-		fo.write(bytes.toByteArray());
-		bytes.flush();
-		image++;
+		Bitmap bmp = BitmapFactory.decodeFile(img);
 		
-		ByteArrayOutputStream bytes2 = new ByteArrayOutputStream();
-		bmp2.compress(Bitmap.CompressFormat.PNG, 100, bytes2);
-		File f2 = new File(Environment.getExternalStorageDirectory() + File.separator + "PhotoIntent Files" + File.separator + image + ".png");
-		f2.createNewFile();
-		FileOutputStream fo2 = new FileOutputStream(f2);
-		fo2.write(bytes2.toByteArray());
-		bytes2.flush();
+		//int height = bmp.getHeight();
+		//int width = bmp.getWidth();
+
+        Bitmap bmp32 = bmp.copy(Bitmap.Config.ARGB_8888, true);
+        Mat imgToProcess = null;
+        Utils.bitmapToMat(bmp32, imgToProcess); 
+        
+        Mat imgToProcessGray = new Mat(); 
+        Imgproc.cvtColor(imgToProcess, imgToProcessGray,Imgproc.COLOR_RGBA2GRAY);
+        Mat imgToProcessGrayC4 = new Mat();
+        Imgproc.cvtColor(imgToProcessGray, imgToProcessGrayC4,Imgproc.COLOR_GRAY2RGBA, 4);
+        
+
+        Bitmap bmpOut = Bitmap.createBitmap(bmp32.getWidth(),  bmp32.getHeight(), Bitmap.Config.ARGB_8888); 
+        Utils.matToBitmap(imgToProcessGrayC4, bmpOut); 
 		
-		fo.close();
-		fo2.close();
-		***/	
-			
-		//Mat imgToProcess = Highgui.imread(picture);
-		//Mat imgToProcess = null;
-		//Mat imgToProcess = new Mat();
 		
-		//Bitmap bmp = BitmapFactory.decodeFile(picture);
-		//Utils.bitmapToMat(bmp, imgToProcess); //App isn't crashing, but also not continuing to Intent later on - breaking out of function?
 		
-		//Imgproc.cvtColor(imgToProcess, imgToProcess, Imgproc.COLOR_BGR2GRAY);
-		//Imgproc.cvtColor(imgToProcess, imgToProcess, Imgproc.COLOR_GRAY2RGBA, 4);
+/*		Mat mMat, result;
+		
+		
+		mMat = Utils.loadResource(this, resId, Highgui.CV_LOAD_IMAGE_COLOR);
+		Imgproc.cvtColor(mMat, result, Imgproc.COLOR_RGB2BGRA);
+		bmp = Bitmap.createBitmap(result.cols(), result.rows(), Bitmap.Config.ARGB_8888);
+		Utils.matToBitmap(result, bmp);
+		mImageView.setImageBitmap(bmp);
+		
+		
+		/*		
+		int numPixels = bmp.getWidth()* bmp.getHeight(); 
+        int[] pixels = new int[numPixels]; 
+
+        //Get pixels.  Each int is the color values for one pixel. 
+        bmp.getPixels(pixels, 0, bmp.getWidth(), 0, 0, bmp.getWidth(), bmp.getHeight()); 
+        //Create a Bitmap of the appropriate format. 
+        Bitmap result = Bitmap.createBitmap(bmp.getWidth(), bmp.getHeight(), Config.ARGB_8888);
+        //Set RGB pixels. 
+        result.setPixels(pixels, 0, result.getWidth(), 0, 0, result.getWidth(), result.getHeight());
+        
+        /** Working **/
+        
+        //Mat imgToProcess = new Mat();
+        //Utils.bitmapToMat(bmp, imgToProcess);
+        
+        //result.cvtColor(result, result, result.COLOR_BGR2RGBA);
+/*	
+		Mat imgToProcess = Highgui.imread(picture);
+		Mat imgToProcess = null;
+		Mat imgToProcess = new Mat();
+		
+		Bitmap bmp = BitmapFactory.decodeFile(picture);
+		Utils.bitmapToMat(bmp, imgToProcess); //App isn't crashing, but also not continuing to Intent later on - breaking out of function?
+		
+		Imgproc.cvtColor(imgToProcess, imgToProcess, Imgproc.COLOR_BGR2GRAY);
+		Imgproc.cvtColor(imgToProcess, imgToProcess, Imgproc.COLOR_GRAY2RGBA, 4);
 /*
 		for(int i=0;i<imgToProcess.height();i++){
 		    for(int j=0;j<imgToProcess.width();j++){
@@ -267,10 +300,10 @@ public class PhotoIntentActivity extends Activity {
 		        imgToProcess.put(i, j, new double[]{y, y, y, 255});
 		    }
 		}
-*/		
-	    //Utils.matToBitmap(imgToProcess, bmp); //Again, not crashing app, but not continuing either...
-
-		toast2.show(); //Confirm end of method
+		
+	    Utils.matToBitmap(imgToProcess, bmp); //Again, not crashing app, but not continuing either...
+*/
+		toast.show(); //Confirm end of method
 	}
 
 	private void handleSmallCameraPhoto(Intent intent) {
@@ -291,6 +324,31 @@ public class PhotoIntentActivity extends Activity {
 
 	}
 	private void handleCameraVideo(Intent intent) {
+		//Method to change storage location of video file
+			//Good luck
+		
+		String extStorageDirectory = Environment.getExternalStorageDirectory().toString();
+		File newFolder = new File(extStorageDirectory + storageFolder);
+		newFolder.mkdir();
+		
+		try {
+		    AssetFileDescriptor videoAsset = getContentResolver().openAssetFileDescriptor(intent.getData(), "r");
+		    FileInputStream fis = videoAsset.createInputStream();
+		    //File f = new File(Environment.getExternalStorageDirectory() + storageFolder + File.separator + "test_" + String.format(Locale.ENGLISH, "%03d", image) + ".png");
+		    File tmpFile = new File(Environment.getExternalStorageDirectory() + storageFolder + File.separator + "video.mp4"); //TODO: change filename to application name 
+		    FileOutputStream fos = new FileOutputStream(tmpFile);
+
+		    byte[] buf = new byte[40960];
+		    int len;
+		    while ((len = fis.read(buf)) > 0) {
+		        fos.write(buf, 0, len);
+		    }       
+		    fis.close();
+		    fos.close();
+		 } catch (IOException io_e) {
+		    // Handle error?
+		  }
+		
 		mVideoUri = intent.getData();
 		mVideoView.setVideoURI(mVideoUri);
 		mImageBitmap = null;
@@ -317,22 +375,23 @@ public class PhotoIntentActivity extends Activity {
 	};
 	Button.OnClickListener mProcVidOnClickListener = 
 			new Button.OnClickListener() {
-			public void onClick(View v) {
-				try {
+			
+		public void onClick(View v) {
+				try{
 					dispatchProcVideoIntent();
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
+				}
+				catch (IOException e){
 					e.printStackTrace();
 				}
-			}
-		};
+		}
+	};
 
 	/** Called when the activity is first created. */
 	@Override
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
-
+		
 		mImageView = (ImageView) findViewById(R.id.imageView1);
 		mVideoView = (VideoView) findViewById(R.id.videoView1);
 		mImageBitmap = null;

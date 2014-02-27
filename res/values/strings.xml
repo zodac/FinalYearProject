@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="hello">Hello World, PhotoIntentActivity!</string>
-    <string name="app_name">PhotoByIntent</string>
+    <string name="app_name">KeyAnalyser</string>
     <string name="btnIntend">Take B Picture</string>
     <string name="btnIntendS">Take S Pic</string>
     <string name="btnIntendV">Take Video</string>

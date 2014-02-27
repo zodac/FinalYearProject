@@ -1,21 +1,21 @@
-18th January 2013 - Sheikh Mehdi
+10th February 2013 - Sheikh Mehdi
 
-photobyintent v0.1 - Based on photobyintent project on developer.android website
+KeyAnalyser v0.2 - Based on photobyintent project on developer.android website
 
 Changes:
 =======
-• Add "Process" button to main screen (keep big/small image and video buttons).
-• Add toasts to confirm full run through of "dispatchProcVideoIntent" method.
-• Load video file using "MediaMetadataRetriever" class.
-• Add new directory for image files at /sdcard/PhotoIntentStorage.
-• Pull length of video using .METADATA_KEY_DURATION.
-• WHILE loop extracting a bmp image every 0.1s from video file using .getFrameAtTime().
-• Use bmp.compress to convert bmp file to png and put into byte stream.
-• Save file at location, using a counter "image" for filename.
-• Write bytes to location.
-• Flush byte stream, increment counters.
+• "Take Video" button now saves at programmed location (/sdcard/KeyAnalyser_tmp)
+• Images now stored in subfolder (/sdcard/KeyAnalyser_tmp/tmp_images).
+• "Process" button loads this file, not test file.
+• WHILE loop changed to FOR loop. Uses length of video to determine how many iterations.
+• Image filenames now saved with the name in 00x format.
+• App name changed from "photobyintent" to "KeyAnalyser".
 
 Bugs:
 ====
+• FOR loop crashes after x iterations (usually with x = 19) with a NULL pointer error. Using a break to continue, but needs to be looked at. Possible help at #android-dev on freenode.
+
+Solved Bugs:
+=========
 • vidLength currently pulling 9s on a 7s video - needs to be investigated. Constant 2s or %, or deeper issue?
 • Problem with precision of frame extraction - images only updating every 2s from video file - maximum of 4 distint images from 7s video. Limitation of MMdR class?
