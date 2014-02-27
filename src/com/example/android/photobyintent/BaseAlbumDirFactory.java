@@ -1,4 +1,4 @@
-package com.example.android.photobyintent;
+/*package com.example.android.photobyintent;
 
 import java.io.File;
 
@@ -17,4 +17,4 @@ public final class BaseAlbumDirFactory extends AlbumStorageDirFactory {
 				+ albumName
 		);
 	}
-}
+}*/

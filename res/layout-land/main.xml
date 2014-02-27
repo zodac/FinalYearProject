@@ -6,7 +6,6 @@
     android:orientation="vertical"
     android:keepScreenOn="true"
 	>
-
     <Button
         android:id="@+id/btnIntendV"
         android:layout_width="wrap_content"
@@ -14,8 +13,8 @@
         android:layout_alignParentLeft="true"
         android:layout_alignParentRight="true"
         android:layout_alignParentTop="true"
-        android:text="@string/btnIntendV" />
-
+        android:text="@string/btnIntendV"
+    />
     <Button
         android:id="@+id/btnProc"
         android:layout_width="wrap_content"
