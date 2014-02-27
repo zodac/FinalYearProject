@@ -6,22 +6,64 @@
     android:orientation="vertical"
     android:keepScreenOn="true"
 	>
+
     <Button
-        android:id="@+id/btnIntendV"
+        android:id="@+id/VideoIntent"
         android:layout_width="wrap_content"
         android:layout_height="50dp"
         android:layout_alignParentLeft="true"
+        android:layout_alignParentTop="true"
+        android:layout_alignRight="@+id/VideoProcess"
+        android:text="@string/video_intent" />
+
+    <Button
+        android:id="@+id/VideoProcess"
+        android:layout_width="wrap_content"
+        android:layout_height="50dp"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@+id/VideoIntent"
+        android:layout_toLeftOf="@+id/ImageView"
+        android:text="@string/video_process" />
+
+    <Button
+        android:id="@+id/LastLog"
+        android:layout_width="35dp"
+        android:layout_height="75dp"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:layout_below="@+id/VideoProcess"
+        android:text="@string/left"
+    />
+
+    <TextView
+        android:id="@+id/TextView"
+        android:layout_width="225dp"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignTop="@+id/LastLog"
+        android:layout_toLeftOf="@+id/NextLog"
+        android:layout_toRightOf="@+id/LastLog"
+        android:textIsSelectable="true"
+        android:textSize="17sp" />
+
+    <Button
+        android:id="@+id/NextLog"
+        android:layout_width="35dp"
+        android:layout_height="75dp"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentRight="true"
+        android:layout_below="@+id/VideoProcess"
+        android:layout_marginRight="223dp"
+        android:text="@string/right" />
+
+    <ImageView
+        android:id="@+id/ImageView"
+        android:layout_width="225dp"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
         android:layout_alignParentRight="true"
         android:layout_alignParentTop="true"
-        android:text="@string/btnIntendV"
-    />
-    <Button
-        android:id="@+id/btnProc"
-        android:layout_width="wrap_content"
-        android:layout_height="50dp"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentRight="true"
-        android:layout_below="@+id/btnIntendV"
-        android:text="@string/btnProc"
-    />
+        android:contentDescription="@string/image_desc"
+        android:textSize="15sp" />
+
 </RelativeLayout>

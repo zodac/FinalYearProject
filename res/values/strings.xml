@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="hello">Hello World, PhotoIntentActivity!</string>
     <string name="app_name">KeyAnalyser</string>
-    <string name="btnIntend">Take B Picture</string>
-    <string name="btnIntendS">Take S Pic</string>
-    <string name="btnIntendV">Take Video</string>
-    <string name="btnProc">Process</string>
+    <string name="video_intent">Take Video</string>
+    <string name="video_process">Process</string>
     <string name="cannot">Cannot</string>
-    <string name="album_name">CameraSample</string>
     <string name="settings">Settings</string>
     <string name="temp_files">Delete all files</string>
     <string name="temp_images">Delete images only</string>
-    <string name="log">Previous results</string>
+    <string name="log">Last result</string>
+    <string name="clear">Clear screen</string>
     <string name="quit">Close KeyAnalyser</string>
+    <string name="left">&lt;</string>
+    <string name="right">&gt;</string>
+    <string name="image_desc">Key Model Number</string>
 </resources>
