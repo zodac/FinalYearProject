@@ -1,21 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="horizontal"
+<RelativeLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    >
-   <LinearLayout 
-   android:orientation="vertical"
-   android:layout_width="wrap_content"
-   android:layout_height="match_parent"
-   >
-		<Button android:text="@string/btnIntend" android:id="@+id/btnIntend"
-		    android:layout_height="wrap_content" 
-		    android:layout_width="match_parent" />
-  </LinearLayout>
-	<ImageView 
-	    android:layout_height="wrap_content" 
-	    android:layout_width="wrap_content" 
-	    android:visibility="visible"
-	    android:id="@+id/imageView1" />
-</LinearLayout>
+    android:orientation="vertical"
+	>
+
+    <Button
+        android:id="@+id/btnIntendV"
+        android:layout_width="wrap_content"
+        android:layout_height="50dp"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentTop="true"
+        android:text="@string/btnIntendV" />
+
+    <Button
+        android:id="@+id/btnProc"
+        android:layout_width="wrap_content"
+        android:layout_height="50dp"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:layout_below="@+id/btnIntendV"
+        android:text="@string/btnProc"
+    />
+</RelativeLayout>
