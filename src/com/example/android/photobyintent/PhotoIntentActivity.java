@@ -1,5 +1,12 @@
 package com.example.android.photobyintent;
 
+import static com.googlecode.javacv.cpp.opencv_core.IPL_DEPTH_8U;
+import static com.googlecode.javacv.cpp.opencv_core.cvGet2D;
+//import static com.googlecode.javacv.cpp.opencv_imgproc.*;
+import static com.googlecode.javacv.cpp.opencv_highgui.cvLoadImage;
+import com.googlecode.javacv.cpp.opencv_core.CvScalar;
+import com.googlecode.javacv.cpp.opencv_core.IplImage;
+
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -7,23 +14,22 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.List;
 import java.util.Locale;
-/*
-import org.opencv.android.Utils;
-import org.opencv.core.CvException;
-import org.opencv.core.CvType;
-import org.opencv.core.Mat;
-import org.opencv.core.Scalar;
-import org.opencv.highgui.Highgui;
-import org.opencv.imgproc.Imgproc;
-*/
+
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.Color;
 import android.media.MediaMetadataRetriever;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
@@ -31,8 +37,16 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
-public class PhotoIntentActivity extends Activity {
 
+public class PhotoIntentActivity extends Activity {	
+	
+	int image;
+	File tempFolder = new File(Environment.getExternalStorageDirectory().toString() + File.separator + "KeyAnalyser_tmp");
+	File rawImageFolder = new File(Environment.getExternalStorageDirectory().toString() + File.separator + "KeyAnalyser_tmp" + File.separator + "images_tmp");
+	File procImageFolder = new File(Environment.getExternalStorageDirectory().toString() + File.separator + "KeyAnalyser_tmp" + File.separator + "Procimages_tmp");
+	File lengthImageFolder = new File(Environment.getExternalStorageDirectory().toString() + File.separator + "KeyAnalyser_tmp" + File.separator + "Lengthimages_tmp");
+	File v1 = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser_tmp" + File.separator + "video.mp4"); 	
+	
 	private void dispatchTakeVideoIntent() {
 		Intent takeVideoIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
 		startActivityForResult(takeVideoIntent, 3);
@@ -41,136 +55,246 @@ public class PhotoIntentActivity extends Activity {
 	private void dispatchProcVideoIntent() throws IOException{
 		
 		//Variables
-		Toast toast = Toast.makeText(getApplicationContext(), "Processing complete!", Toast.LENGTH_SHORT);
-		int image = 1;
-
-		File videoPath = new File(Environment.getExternalStorageDirectory(), "KeyAnalyser_tmp/video.mp4");
+		long start = System.currentTimeMillis();
+		int counter, c = 0, min_row = 0, max_row = 0, i, j;
+		int first_red = 0, last_red = 0, max_red = 0, max_red_sum = 0, first_red_ave = 0, last_red_ave = 0, row_ave = 0;
+		double pixel_cm = 0, length = 0;
+		boolean min_found = false;
+		CvScalar test;
+		
+		image = 1;
+		File videoPath = v1;
 		String video = videoPath.getAbsolutePath();
 		MediaMetadataRetriever vidFile = new MediaMetadataRetriever();
 		vidFile.setDataSource(video);
+
+		//Create folder to store images
+		rawImageFolder.mkdir();
 		
-		//if (Environment.MEDIA_MOUNTED.equals(Environment.getExternalStorageState()))
-			//If I feel like being responsible
-				//IF :P
-		
-		//Create folder to store images		
-		String extStorageDirectory = Environment.getExternalStorageDirectory().toString();
-		File newFolder = new File(extStorageDirectory + File.separator + "KeyAnalyser_tmp" + File.separator + "images_tmp");
-		newFolder.mkdir();
-		
-		String value = vidFile.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
-		long vidLength = (Long.parseLong(value)/1000); //Returns milliseconds - divide by 1,000
-		
-		for(int i = 0; i <= 10*vidLength; i++, image++) //10*vidLength since I'm getting frames every 1/10th sec
+		//String value = vidFile.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+		//long vidLength = (Long.parseLong(value)/1000); //Returns milliseconds - divide by 1,000
+
+		//for(i = 0; i <= 10*vidLength ; i++, image++) //10*vidLength since I'm getting frames every 1/10th sec
+		for(i = 0; i < 3; i++, image++)
 		{
 			Bitmap bmp = vidFile.getFrameAtTime(100000*i, MediaMetadataRetriever.OPTION_CLOSEST);
-			
+					
 			if(bmp != null)
-			{
-				ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-				bmp.compress(Bitmap.CompressFormat.PNG, 100, bytes);
-				File f = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser_tmp" + File.separator + "images_tmp" + File.separator + String.format(Locale.ENGLISH, "%03d", image) + ".png");
-				f.createNewFile();
-				FileOutputStream fo = new FileOutputStream(f);
-				bytes.writeTo(fo);
-
-				bytes.flush();
-				bytes.close();
-				bytes.reset();
-				fo.close();
-			}
+				WriteImageToFile(bmp, "images_tmp", image);
 			else if (bmp == null)
 				break;
 		}
-	
+		
 		vidFile.release();
-		image = 0;
+		counter = image;
+		image = 1;
+		//StatusToast("Frames Extracted");
 		
-		//setContentView(R.layout.main2); //Switch to layout two - button with white text?
-/*
-		File imagePath = new File(Environment.getExternalStorageDirectory(), "KeyAnalyser/test_001.png");
-		String img = imagePath.getAbsolutePath();
+		/** Red area **/
 		
-		Bitmap bmp = BitmapFactory.decodeFile(img);
-		
-		//int height = bmp.getHeight();
-		//int width = bmp.getWidth();
+		for (j = 0; j <= counter; j++, image++){
+			
+			File imagePath = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser_tmp" + File.separator + "images_tmp" + File.separator + String.format(Locale.ENGLISH, "%03d", image) + ".png");
+			String img = imagePath.getAbsolutePath();
+			Bitmap bmp = BitmapFactory.decodeFile(img);
+			max_red = 1;
+			
+			if (bmp != null)
+	        {
+				IplImage source = IplImage.create(bmp.getWidth(), bmp.getHeight(), IPL_DEPTH_8U, 4);
+				source = cvLoadImage(img);
+				
+				for (c = 0; c < source.width(); c++)
+				{
+					int red_count = 0;
+					
+					for (int r = 0; r < source.height(); r++)
+					{
+						test = cvGet2D(source, r, c);
+						int red = (int) test.getVal(2);
+			            int green = (int) test.getVal(1);
+			            int blue = (int) test.getVal(0);
+			            
+			            if (red > 140 && green < 75 && blue < 75)
+			            	red_count++;
+					}
+					
+					if (red_count > max_red) //# of red pixels in column with most red pixels
+						max_red = red_count;
+					
+					if (red_count > 10) //Red area, by start and finish columns
+					{
+						if (first_red == 0)
+							first_red = c;
+						else if (first_red > 0){
+							last_red = c;
+						}
+					}
+				}
 
-        Bitmap bmp32 = bmp.copy(Bitmap.Config.ARGB_8888, true);
-        Mat imgToProcess = null;
-        Utils.bitmapToMat(bmp32, imgToProcess); 
-        
-        Mat imgToProcessGray = new Mat(); 
-        Imgproc.cvtColor(imgToProcess, imgToProcessGray,Imgproc.COLOR_RGBA2GRAY);
-        Mat imgToProcessGrayC4 = new Mat();
-        Imgproc.cvtColor(imgToProcessGray, imgToProcessGrayC4,Imgproc.COLOR_GRAY2RGBA, 4);
-        
-
-        Bitmap bmpOut = Bitmap.createBitmap(bmp32.getWidth(),  bmp32.getHeight(), Bitmap.Config.ARGB_8888); 
-        Utils.matToBitmap(imgToProcessGrayC4, bmpOut); 
-		
-		
-		
-/*		Mat mMat, result;
-		
-		
-		mMat = Utils.loadResource(this, resId, Highgui.CV_LOAD_IMAGE_COLOR);
-		Imgproc.cvtColor(mMat, result, Imgproc.COLOR_RGB2BGRA);
-		bmp = Bitmap.createBitmap(result.cols(), result.rows(), Bitmap.Config.ARGB_8888);
-		Utils.matToBitmap(result, bmp);
-		mImageView.setImageBitmap(bmp);
-		
-		
-		/*		
-		int numPixels = bmp.getWidth()* bmp.getHeight(); 
-        int[] pixels = new int[numPixels]; 
-
-        //Get pixels.  Each int is the color values for one pixel. 
-        bmp.getPixels(pixels, 0, bmp.getWidth(), 0, 0, bmp.getWidth(), bmp.getHeight()); 
-        //Create a Bitmap of the appropriate format. 
-        Bitmap result = Bitmap.createBitmap(bmp.getWidth(), bmp.getHeight(), Config.ARGB_8888);
-        //Set RGB pixels. 
-        result.setPixels(pixels, 0, result.getWidth(), 0, 0, result.getWidth(), result.getHeight());
-        
-        /** Working **/
-        
-        //Mat imgToProcess = new Mat();
-        //Utils.bitmapToMat(bmp, imgToProcess);
-        
-        //result.cvtColor(result, result, result.COLOR_BGR2RGBA);
-/*	
-		Mat imgToProcess = Highgui.imread(picture);
-		Mat imgToProcess = null;
-		Mat imgToProcess = new Mat();
-		
-		Bitmap bmp = BitmapFactory.decodeFile(picture);
-		Utils.bitmapToMat(bmp, imgToProcess); //App isn't crashing, but also not continuing to Intent later on - breaking out of function?
-		
-		Imgproc.cvtColor(imgToProcess, imgToProcess, Imgproc.COLOR_BGR2GRAY);
-		Imgproc.cvtColor(imgToProcess, imgToProcess, Imgproc.COLOR_GRAY2RGBA, 4);
-/*
-		for(int i=0;i<imgToProcess.height();i++){
-		    for(int j=0;j<imgToProcess.width();j++){
-		        double y = 0.3 * imgToProcess.get(i, j)[0] + 0.59 * imgToProcess.get(i, j)[1] + 0.11 * imgToProcess.get(i, j)[2];
-		        imgToProcess.put(i, j, new double[]{y, y, y, 255});
-		    }
+				max_red_sum = max_red_sum + max_red; //Running total (NOT average)			
+	
+				first_red_ave = first_red_ave + first_red;
+				last_red_ave = last_red_ave + last_red;
+				
+				if (j > 0)
+				{
+					first_red_ave = first_red_ave/2;
+					last_red_ave = last_red_ave/2;					
+				}
+	        }
+			else if (bmp == null)
+				break;
 		}
+		//StatusToast("Red area analysed");
 		
-	    Utils.matToBitmap(imgToProcess, bmp); //Again, not crashing app, but not continuing either...
-*/
-		toast.show(); //Confirm end of method
-	}
+		/** BT of key **/
+		
+		image = 1;
+		procImageFolder.mkdir();
+	
+		for(j = 0; j <= counter; j++, image++)
+		{
+			File imagePath = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser_tmp" + File.separator + "images_tmp" + File.separator + String.format(Locale.ENGLISH, "%03d", image) + ".png");
+			String img = imagePath.getAbsolutePath();
+			Bitmap bmp = BitmapFactory.decodeFile(img);
+			c = first_red_ave;
+			min_found = false;
+			
+			if (bmp != null)
+	        {
+				IplImage source = IplImage.create(bmp.getWidth(), bmp.getHeight(), IPL_DEPTH_8U, 4);
+				source = cvLoadImage(img);
+		        Bitmap temp = Bitmap.createBitmap(source.width(), source.height(), Bitmap.Config.ARGB_8888);
+				//IplImage canny = IplImage.create(bmp.getWidth(), bmp.getHeight(), IPL_DEPTH_8U, 1);
+		        //cvCvtColor(source, canny, CV_BGR2GRAY); 
+		        //cvCanny(source, canny, 50, 100, 3);
+		        
+		        for(int r = 0; r < source.height(); r++) {
+		        	for(c = first_red_ave; c <= last_red_ave; c++)
+			        {
+			            test = cvGet2D(source, r, c);
+			
+			            int red = (int) test.getVal(2);
+			            int green = (int) test.getVal(1);
+			            int blue = (int) test.getVal(0);
+			            
+			           /* test = cvGet2D(canny, r, c);
+			            int red1 = (int) test.getVal(2);
+			            int green1 = (int) test.getVal(1);
+			            int blue1 = (int) test.getVal(0);
 
-	private void handleCameraVideo(Intent intent) {
+			            if (blue1 > 100) {
+			            	temp.setPixel(c,  r, Color.argb(255, 255, 255, blue1)); //Object pixel
+			            	/*if (!min_found)
+			            	{
+			            		min_found = true;
+			            		min_row = r;
+			            	}
+			            	else if (min_found == true)
+			            		max_row = r;
+			            }
+			            else temp.setPixel(c,  r, Color.argb(255, red1, green1, blue1)); //Background pixel
+			            */
+			            if (red > 90 && green > 175 && blue > 175){}
+			            if (red > 90 && green < red*1.25 && blue < red*1.25){}
+			            else{
+			            	temp.setPixel(c, r, Color.argb(255, 255, 255, 255));
+			            	
+			            	if (!min_found)
+			            	{
+			            		min_found = true;
+			            		min_row = r;
+			            	}
+			            	else if (min_found == true)
+			            		max_row = r;
+			            }
+			        }
+			    }			 
+		        
+				WriteImageToFile(temp, "Procimages_tmp", image);
+				row_ave = row_ave + (max_row-min_row);
+				
+				if (j > 0 && max_row-min_row < row_ave*1.25 && max_row-min_row > row_ave*0.75)
+					row_ave = (row_ave)/2;				
+	        }			
+			else if (bmp == null)
+				break;
+		}
+		//StatusToast("Length calculated");
+
+        //DeleteFolder(tempFolder); //Delete all temp files
+		DeleteFolder(rawImageFolder);
+		DeleteFolder(procImageFolder);
 		
-		String extStorageDirectory = Environment.getExternalStorageDirectory().toString();
-		File newFolder = new File(extStorageDirectory + File.separator + "KeyAnalyser_tmp");
-		newFolder.mkdir();
+		row_ave = row_ave/i;
+		max_red_sum = max_red_sum/i;
+		pixel_cm = 17.5/max_red_sum;
+		length = row_ave*pixel_cm;
+		String keyModel = "No model found";
+		
+		if (length > 5.2 && length < 5.4)
+			keyModel = "UL 050";
+		
+		Uri notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+        Ringtone r = RingtoneManager.getRingtone(getApplicationContext(), notification);
+        r.play();
+        //MediaPlayer mPlayer = MediaPlayer.create(getBaseContext(), R.raw.op);
+        //mPlayer.start()
+        
+        long end = System.currentTimeMillis();
+		StatusAlert(keyModel,
+					"Length                 " + String.format(Locale.ENGLISH, "%.3f", length) +"cm\n" +
+					"\nProcess time       " + ((end-start)/1000) + " seconds" + 
+					"\nRow Delt              " + row_ave + 
+					"\nRatio pixel/cm    " + String.format(Locale.ENGLISH, "%.3f", pixel_cm) +
+					"\nFirst Red Col       " + first_red_ave + 
+					"\nLast Red Col       " + last_red_ave + 
+					"\nPasses                " + i);
+	}	
+	
+	//Method to delete a file or directory (and any content it may have)
+	void DeleteFolder(File fileOrDirectory) {
+	    if (fileOrDirectory.isDirectory())
+	        for (File child : fileOrDirectory.listFiles())
+	            DeleteFolder(child);
+	    fileOrDirectory.delete();
+	}
+	
+	void StatusToast(String statusString){
+		Toast status = Toast.makeText(getApplicationContext(), statusString, Toast.LENGTH_LONG);
+		status.show();
+	}
+	
+	void StatusAlert(String title, String message){
+		AlertDialog alertDialog = new AlertDialog.Builder(this).create();
+        alertDialog.setTitle(title);
+        alertDialog.setMessage(message);
+
+        alertDialog.setButton(DialogInterface.BUTTON_POSITIVE , "Done", new DialogInterface.OnClickListener() {
+			public void onClick(DialogInterface dialog, int which) {}
+		});
+        alertDialog.setIcon(R.drawable.ic_launcher);
+        alertDialog.show();
+		
+	}
+	
+	void WriteImageToFile(Bitmap source, String location, int image_number) throws IOException{
+		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+		source.compress(Bitmap.CompressFormat.PNG, 100, bytes);
+		File f = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser_tmp" + File.separator + location + File.separator + String.format(Locale.ENGLISH, "%03d", image_number) + ".png");
+		f.createNewFile();
+		FileOutputStream fo = new FileOutputStream(f);
+		bytes.writeTo(fo);
+	}
+	
+	private void handleCameraVideo(Intent intent) {
+		tempFolder.mkdir();
 		
 		try {
 		    AssetFileDescriptor videoAsset = getContentResolver().openAssetFileDescriptor(intent.getData(), "r");
 		    FileInputStream fis = videoAsset.createInputStream();
-		    File tmpFile = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser_tmp" + File.separator + "video.mp4"); 
+		    File tmpFile = v1; 
 		    FileOutputStream fos = new FileOutputStream(tmpFile);
 
 		    byte[] buf = new byte[40960];
@@ -208,6 +332,7 @@ public class PhotoIntentActivity extends Activity {
 	/** Called when the activity is first created. */
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
+		
 		setContentView(R.layout.main);
 
 		Button vidBtn = (Button) findViewById(R.id.btnIntendV);
