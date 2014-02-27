@@ -5,13 +5,18 @@
           android:title="@string/settings"
           android:showAsAction="ifRoom"
           />
+    <item android:id="@+id/clear"
+          android:icon= "@drawable/ic_clear"
+          android:title="@string/clear"
+          android:showAsAction="ifRoom"
+          />
     <item android:id="@+id/temp_files"
           android:icon="@drawable/ic_delete"
           android:title="@string/temp_files"
-          android:showAsAction="ifRoom"
           />
-    <item android:id="@+id/clear"
-          android:title="@string/clear"
+    <item android:id="@+id/temp_images"
+          android:icon="@drawable/ic_delete"
+          android:title="@string/temp_images"
           />
     <item android:id="@+id/quit"
           android:icon="@drawable/ic_quit"

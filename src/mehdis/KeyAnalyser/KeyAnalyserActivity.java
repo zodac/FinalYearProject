@@ -1,4 +1,9 @@
-/**Nee ta ma duh, tyen shee-a soy ya duh ren, doh goy-swa**/
+/**
+	Sheikh Arouge Mehdi (09498389)
+	4th Year B.A.I. Engineering - School of Computer Science and Statistics
+	October 2012 to April 2013
+	KeyAnalyser for Android 2.3.3+, to determine model number of key (using Silca model numbers)
+ */
 
 package mehdis.KeyAnalyser;
 
@@ -12,17 +17,12 @@ import static com.googlecode.javacv.cpp.opencv_imgproc.cvCanny;
 import static com.googlecode.javacv.cpp.opencv_imgproc.cvCvtColor;
 import static com.googlecode.javacv.cpp.opencv_imgproc.cvHoughLines2;
 
-import com.googlecode.javacpp.FloatPointer;
-import com.googlecode.javacv.cpp.opencv_core.CvMemStorage;
-import com.googlecode.javacv.cpp.opencv_core.CvScalar;
-import com.googlecode.javacv.cpp.opencv_core.CvSeq;
-import com.googlecode.javacv.cpp.opencv_core.IplImage;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -35,13 +35,15 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.media.AudioManager;
 import android.media.MediaMetadataRetriever;
+import android.media.MediaPlayer;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Vibrator;
 import android.provider.MediaStore;
 import android.text.InputType;
 import android.view.ContextMenu;
@@ -56,755 +58,499 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-public class KeyAnalyserActivity extends Activity
-{	
-	private static final int ARRAY_SIZE = 10;
+import com.googlecode.javacpp.BytePointer;
+import com.googlecode.javacpp.FloatPointer;
+import com.googlecode.javacv.cpp.opencv_core.CvMemStorage;
+import com.googlecode.javacv.cpp.opencv_core.CvSeq;
+import com.googlecode.javacv.cpp.opencv_core.IplImage;
+
+public class KeyAnalyserActivity extends Activity{	
+	int numOfPasses = 1;
+	int instanceCounter = 0;
+	int logPointer = 0;
 	
-	//Variables that need to survive activity destruction
-	int passes = 1, counter = 0, instance = 0, pointer = 0;
-	double length, degree_ave;
-	long time;
-	boolean finished = false, exist = true;
-	String keyModel;
-	Key model_result = new Key("No model found", 0, 0);
+	int firstRedColumn = 0, lastRedColumn = 0, firstRedRow = 0, lastRedRow = 0; //WEST, EAST, NORTH, SOUTH
 	
-	//Allow global access
-	TextView mTextView;
-	ImageView mImageView;
-	Button last_result, next_result;
+	ArrayList<Result> analysisResults = new ArrayList<Result>();
+	ArrayList<Key> databaseKeys = new ArrayList<Key>();
 	
-	//Info for key models
-	//				  Name, Length, Degree
-	Key MS_2 = new Key("MS2", 4.2, 90);
-	Key UL_050 = new Key("UL050", 5.5, 85);
-	Key UNI_3 = new Key("UNI3", 5.75, 105);
-	Key UL_054 = new Key("UL054", 5.9, 95);
-	ResultStorage[] ResultStorages = new ResultStorage[ARRAY_SIZE]; //Array to hold most recent <ARRAY_SIZE> results (then drops oldest one)
-	//Ideally, I would have liked to used an ArrayList to allow for the array to, but decided that 10 results should be enough
+	String rootLocation = Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser";
+	File videoLocation = new File(rootLocation + File.separator + "video.mp4");
 	
-	//Filepaths for video file & temp folders
-	File v1 = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser" + File.separator + "video.mp4");
-	File tempFolder = new File(Environment.getExternalStorageDirectory().toString() + File.separator + "KeyAnalyser");
-	File rawImageFolder = new File(Environment.getExternalStorageDirectory().toString() + File.separator + "KeyAnalyser" + File.separator + "1_raw_images");
-	File cannyImageFolder = new File(Environment.getExternalStorageDirectory().toString() + File.separator + "KeyAnalyser" + File.separator + "2_canny_images");
-	File degreeImageFolder = new File(Environment.getExternalStorageDirectory().toString() + File.separator + "KeyAnalyser" + File.separator + "3_degree_images");
-	
-	//Calls intent to record video
-	private void TakeVideoIntent()
-	{		
-		//Confirm SD card is mounted, then call intent
-		if (!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED))
-			StatusToast("SD card not mounted!");
-		else
-		{
+	private void TakeVideoIntent(){
+		if(Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){
 			Intent takeVideoIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
 			startActivityForResult(takeVideoIntent, 3);
 		}
+		else statusToast("SD card not mounted!");
 	}
 	
 	//Main thread - processing of video
-	private void ProcessVideo() throws IOException
-	{		
-		//Initialisation & resetting of variables
-		long start = System.currentTimeMillis();
-		int red_count = 0, c = 0, r = 0, min_row = 0, max_row = 0;
-		int i = 0, image = 1, first_red = 0, last_red = 0, max_red = 0, max_red_col = 0;
-		int first_red_col = 0, last_red_col = 0, row_ave = 0, first_red_row = 0, last_red_row = 0, degree_skip = 0;
-		double rho = 0, theta = 0, degree = 0, degree_sum = 0, degree_ave = 0;
-		boolean model_found = true, min_found = false;
-		int first_red_col_ave = 0, last_red_col_ave = 0, first_red_row_ave = 0, last_red_row_ave = 0;
-		int row_sum = 0;
-		double length_result_offset = 0.025, degree_result_offset = 0.125, degree_offset = 0.1;
+	private void ProcessVideo(){
+		long startTime = System.currentTimeMillis();	
 		
-		keyModel = "No model found";
-		counter = 0;
-		length = 0;
-		CvScalar test;
-		
-		//Check it SD card is mounted, and (if it is) if video.mp4 exists
-		if (!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED))
-			StatusToast("SD card not mounted!");
-		else if (!v1.exists())
-			StatusToast("No video file to analyse!");
-
-		//Create folders
-		rawImageFolder.mkdir();
-		cannyImageFolder.mkdir(); //Only used to test image files - not actually needed
-		degreeImageFolder.mkdir();
-		
-		//Load video into MMDR
-		MediaMetadataRetriever vidFile = new MediaMetadataRetriever();
-		vidFile.setDataSource(v1.getAbsolutePath());
-
-		if (v1.exists()) //Only begin analysis if video file actually exists
-		{
-			for(i = 0; i < passes; i++, image++, counter++)
-			{
-				//Extract frames every 1/10 of a second
-				Bitmap bmp = vidFile.getFrameAtTime(100000*i, MediaMetadataRetriever.OPTION_CLOSEST);
+		if(!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED))
+			statusToast("SD card not mounted!");
+		else if(!videoLocation.exists())
+			statusToast("No video file to analyse!");
+		else{
+			createFolders();
+			
+			MediaMetadataRetriever videoFile = new MediaMetadataRetriever();
+			videoFile.setDataSource(videoLocation.getAbsolutePath());
+			Bitmap extractedFrame = videoFile.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST);
+			
+			int i = 0;
+			int imageCount = 0;
+			
+			double length = 0;
+			double degreeAverage = 0;
+			
+			while(extractedFrame != null && i < numOfPasses){
+				writeImageToFile(extractedFrame, "1_raw_images", ++imageCount);
+				IplImage imageToProcess = cvLoadImage(rootLocation + File.separator + "1_raw_images" + File.separator + String.format(Locale.ENGLISH, "%03d", imageCount) + ".png");	
 				
-				if(bmp != null)
-				{
-					
-					WriteImageToFile(bmp, "1_raw_images", image); //Save extracted frame to SD card
-					//A fully completed app would not need these files at all, so it would make sense to simply not save the files, and just convert them directly to IplImages
-						//However, since I was still refining the settings (for cvCanny and the thresholding for the red area), I left them in so I could check the results if things went wrong.
-					
-					File imagePath = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser" + File.separator + "1_raw_images" + File.separator + String.format(Locale.ENGLISH, "%03d", image) + ".png");
-					String img = imagePath.getAbsolutePath();
-					bmp = BitmapFactory.decodeFile(img);
-					IplImage source = IplImage.create(bmp.getWidth(), bmp.getHeight(), IPL_DEPTH_8U, 4);
-					
-					source = cvLoadImage(img);
-					max_red = 1;
-					
-					//Determine red area for pixel/cm ratio & red area boundary (for cvCanny)
-					for (c = 0; c < source.width(); c++)
-					{
-						red_count = 0;
-						
-						for (r = 0; r < source.height(); r++)
-						{
-							//Extract RGB values from image
-							test = cvGet2D(source, r, c);
-							int red = (int) test.getVal(2);
-				            int green = (int) test.getVal(1);
-				            int blue = (int) test.getVal(0);
-				            
-				            //Thresholding of red area - not idea, but seems to be accurate enough; could alternatively do this through cvCanny though
-				            if (red > 130 && green < 75 && blue < 75)
-				            	red_count++;
-						}
-						
-						if (red_count > max_red) //# of red pixels in column with most red pixels
-							max_red = red_count;
-						
-						if (red_count > 10) //Red area, by start and finish columns, for boundaries - only choosing columns with at least 10 red pixels
-						{
-							if (first_red == 0)
-								first_red = c;
-							else if (first_red > 0)
-								last_red = c;
-						}
-					}
-					max_red_col = max_red_col + max_red; //Running total (NOT average - that's done later)
-					
-					first_red_col = first_red_col + first_red;				
-					last_red_col = last_red_col + last_red;
+				/**
+				 * Determine red area for pixel/cm ratio & red area boundary (for cvCanny)
+				 */
+				int sizeOfMaxRedColumn = redAreaCalculation(imageToProcess);
+				
+				/**
+				 * Moving on to cvCanny analysis: isolating image within red area (with boundaries defined by first_red_row, last_red_row, first_red_col & last_red_col)
+				 */
+		        //Apply cvCanny
+				IplImage cannyImage = IplImage.create(imageToProcess.width(), imageToProcess.height(), IPL_DEPTH_8U, 1);
+		        cvCanny(imageToProcess, cannyImage, 75, 165, 3);
+		       
+		        int row_offset = imageToProcess.height()/200; //Offsets used for red boundaries (since usually the video isn't straight)
+		        int firstObjectPixelRow = 0;
+		        int lastObjectPixelRow = 0;
+		        Bitmap cannyResultImage = Bitmap.createBitmap(imageToProcess.width(), imageToProcess.height(), Bitmap.Config.ARGB_8888);
+		        
+		        //If within these boundaries, apply cvCanny, otherwise leave empty (for .png, this results in transparent space around the image)
+		        for(int row = firstRedRow+(4*row_offset); row < lastRedRow-(4*row_offset); row++){
+		        	int col_offset = imageToProcess.width()/110;
+		        	for(int col = firstRedColumn+(7*col_offset); col < lastRedColumn-(7*col_offset); col++){
+			            int keyPixel = (int) cvGet2D(cannyImage, row, col).getVal(0);
 
-					first_red_col_ave = first_red_col/(i+1);
-					last_red_col_ave = last_red_col/(i+1);					
-					
-					max_red = 1;
-					first_red = last_red = 0;
-					
-					for (r = 0; r < source.height(); r++)
-					{
-						red_count = 0;
-						
-						for (c = 0; c < source.width(); c++)
-						{
-							test = cvGet2D(source, r, c);
-							int red = (int) test.getVal(2);
-				            int green = (int) test.getVal(1);
-				            int blue = (int) test.getVal(0);
-				            
-				            if (red > 130 && green < 75 && blue < 75)
-				            	red_count++;
-						}
-						
-						if (red_count > max_red) //# of red pixels in row with most red pixels
-							max_red = red_count;
-						
-						if (red_count > 15) //Red area, by start and finish rows, for Canny boundaries
-						{
-							if (first_red == 0)
-								first_red = r;
-							else if (first_red > 0)
-								last_red = r;
-						}
-					}
-		
-					first_red_row = first_red_row + first_red;
-					last_red_row = last_red_row + last_red;
-					
-					first_red_row_ave = first_red_row/(i+1);
-					last_red_row_ave = last_red_row/(i+1);			
-					
-					//Moving on to cvCanny analysis: isolating image within red area (with boundaries defined by first_red_row, last_red_row, first_red_col & last_red_col)
-					
-					imagePath = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser" + File.separator + "1_raw_images" + File.separator + String.format(Locale.ENGLISH, "%03d", image) + ".png");
-					img = imagePath.getAbsolutePath();
-					bmp = BitmapFactory.decodeFile(img);
-					min_found = false;
-					
-					source = IplImage.create(bmp.getWidth(), bmp.getHeight(), IPL_DEPTH_8U, 4);
-					IplImage canny = IplImage.create(bmp.getWidth(), bmp.getHeight(), IPL_DEPTH_8U, 1);
-					source = cvLoadImage(img);
-			        Bitmap temp = Bitmap.createBitmap(source.width(), source.height(), Bitmap.Config.ARGB_8888);
-			        //Apply cvCanny
-			        cvCanny(source, canny, 50, 150, 3);
-			        int row_offset = bmp.getHeight()/200, col_offset = bmp.getWidth()/110; //Offsets used for red boundaries (in case video isn't straight)
-			        
-			        //If within these boundaries, apply cvCanny, otherwise leave empty (for .png, this results in transparent space around the image)
-			        
-			        for(r = first_red_row_ave+(4*row_offset); r < last_red_row_ave-(4*row_offset); r++)
-			        {
-			        	for(c = first_red_col_ave+(7*col_offset); c < last_red_col_ave-(7*col_offset); c++)
-				        {
-			        		test = cvGet2D(canny, r, c);
-				            int keyPixel = (int) test.getVal(0);
-	
-				            if (keyPixel > 100){
-				            	temp.setPixel(c,  r, Color.argb(255, 255, 255, keyPixel)); //Object pixel
-				            	if (!min_found)
-				            	{
-				            		min_found = true;
-				            		min_row = r;
-				            	}
-				            	else if (min_found == true)
-				            		max_row = r;
-				            }
-				            else temp.setPixel(c,  r, Color.argb(255, 0, 0, keyPixel)); //Background pixel
-				        }
+			            if (keyPixel > 100){
+			            	cannyResultImage.setPixel(col, row, Color.argb(255, 255, 255, keyPixel)); //Object pixel
+			            	
+			            	if(firstObjectPixelRow <= 0)
+			            		firstObjectPixelRow = row;
+			            	else lastObjectPixelRow = row;
+			            }
+			            else cannyResultImage.setPixel(col, row, Color.argb(255, 0, 0, keyPixel)); //Background pixel
 			        }
-					WriteImageToFile(temp, "2_canny_images", image);
-					
-					//Create images for degree calculation - trying to isolate the tip of the key and some of the rows above it
-					if ((last_red_col_ave-(source.width()/3))-(first_red_col_ave+(source.width()/3)) < 0)
-						temp = Bitmap.createBitmap(source.width()/3, ((7*row_offset)+1), Bitmap.Config.ARGB_8888);
-					
-					else temp = Bitmap.createBitmap((last_red_col_ave-(source.width()/3))-(first_red_col_ave+(source.width()/3)), ((7*row_offset)+1), Bitmap.Config.ARGB_8888);
-					int source_col = first_red_col_ave+(source.width()/3);
-					
-					for (c = 0; c < ((last_red_col_ave-(source.width()/3)) - (first_red_col_ave+(source.width()/3))); c++, source_col++)
-					{
-						int source_row = max_row+1-(7*row_offset);
-						for (r = 0; r < (7*row_offset)+1; r++, source_row++)
-						{
-							test = cvGet2D(canny, source_row, source_col);
-							int keyPixel = (int) test.getVal(0);
-							
-							if (keyPixel > 100)
-								temp.setPixel(c, r, Color.argb(255, 255, 255, keyPixel));
-							else temp.setPixel(c, r, Color.argb(255, 0, 0, keyPixel));
-						}
-					}
-					WriteImageToFile(temp, "3_degree_images", image);
-					
-					//Calculate angle of tip of the key
-					imagePath = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser" + File.separator + "3_degree_images" + File.separator + String.format(Locale.ENGLISH, "%03d", image) +".png");
-					img = imagePath.getAbsolutePath();
-					source = IplImage.create(temp.getWidth(), temp.getHeight(), IPL_DEPTH_8U, 4);
-					canny = IplImage.create(temp.getWidth(), temp.getHeight(), IPL_DEPTH_8U, 1);
-					source = cvLoadImage(img);
-					cvCvtColor(source, canny, CV_BGR2GRAY); 
-					CvSeq cvlines;
-					FloatPointer cvline;
+		        }
+				writeImageToFile(cannyResultImage, "2_canny_images", imageCount);
+				
+				length = (lastObjectPixelRow-firstObjectPixelRow)*(17.5/sizeOfMaxRedColumn);
+				
+				/**
+				 * Create images for degree calculation - trying to isolate the tip of the key and some of the rows above it
+				 */
+				//Define area to isolate and save to file
+				isolateKeyTip(imageCount, imageToProcess, cannyImage, lastObjectPixelRow);
+				
+				//Load image for degree calculation
+				imageToProcess = cvLoadImage(rootLocation + File.separator + "2_canny_images" + File.separator + String.format(Locale.ENGLISH, "%03d", imageCount) + ".png");
+				cannyImage = IplImage.create(imageToProcess.width(), imageToProcess.height(), IPL_DEPTH_8U, 1);
+				cvCvtColor(imageToProcess, cannyImage, CV_BGR2GRAY);
+			
+				//Calculate angle of tip
+				degreeAverage = angleCalculation(cannyImage);
+				
+				extractedFrame = videoFile.getFrameAtTime(100000*++i, MediaMetadataRetriever.OPTION_CLOSEST);
+			}
+			videoFile.release();
+			Result analysisResult = matchKeyToDatabase(length, degreeAverage, (System.currentTimeMillis()-startTime)/1000, imageCount);
+			saveResult(analysisResult);
+			endingTone();
+		}	
+		/** End **/
+	}
+
+	private void isolateKeyTip(int imageCount, IplImage imageToProcess, IplImage cannyImage, int lastObjectPixelRow) {
+		Bitmap cannyResultImage;
+		int row_offset_degree = imageToProcess.height()/200;
+		int source_col = firstRedColumn+(imageToProcess.width()/3);
+		
+		if ((lastRedColumn-(imageToProcess.width()/3))-(firstRedColumn+(imageToProcess.width()/3)) < 0)
+			cannyResultImage = Bitmap.createBitmap(imageToProcess.width()/3, ((7*row_offset_degree)+1), Bitmap.Config.ARGB_8888);
+		else cannyResultImage = Bitmap.createBitmap((lastRedColumn-(imageToProcess.width()/3))-(firstRedColumn+(imageToProcess.width()/3)), ((7*row_offset_degree)+1), Bitmap.Config.ARGB_8888);
+		
+		
+		for (int col = 0; col < ((lastRedColumn-(imageToProcess.width()/3)) - (firstRedColumn+(imageToProcess.width()/3))); col++, source_col++){
+			int source_row = lastObjectPixelRow+1-(7*row_offset_degree);
+			
+			for (int row = 0; row < (7*row_offset_degree)+1; row++, source_row++){
+				int keyPixel = (int) cvGet2D(cannyImage, source_row, source_col).getVal(0);
+				
+				if (keyPixel > 100)
+					cannyResultImage.setPixel(col, row, Color.argb(255, 255, 255, keyPixel));
+				else cannyResultImage.setPixel(col, row, Color.argb(255, 0, 0, keyPixel));
+			}
+		}
+		writeImageToFile(cannyResultImage, "3_degree_images", imageCount);
+	}
+
+	private double angleCalculation(IplImage cannyImage) {
+		CvSeq cvlines = cvHoughLines2(cannyImage, CvMemStorage.create(), CV_HOUGH_STANDARD, 1, Math.PI/180, 1, 0, 0);
+		FloatPointer cvline = new FloatPointer(cvGetSeqElem(cvlines, cvlines.total()-1));
+		try{
+			double rho = cvline.position(0).get();
+			double theta = cvline.position(1).get();
+		
+			return Math.atan(Math.abs(rho)/theta)*(180/Math.PI);
+		} catch (NullPointerException e){
+			return Double.NaN;
+		}
+	}
 	
-					cvlines = cvHoughLines2(canny, CvMemStorage.create(), CV_HOUGH_STANDARD, 1, Math.PI/180, 1, 0, 0);
-					
-					for(int j = 0; j < cvlines.total(); j++)
-					{
-						cvline = new FloatPointer(cvGetSeqElem(cvlines, j));
-						rho = cvline.position(0).get();
-						theta = cvline.position(1).get();
-					}
-					
-					row_sum = row_sum + (max_row-min_row);
-					row_ave = row_sum/(i+1);
-					
-					length = row_ave*(17.5/(max_red_col/(i+1)));
-					
-					degree = Math.atan(Math.abs(rho)/theta)*(180/Math.PI);
-					
-					if (i == 0)
-						degree_ave = degree;
-					
-					if (degree < degree_ave*(1+degree_offset) && degree > degree_ave*(1-degree_offset))
-					{
-						degree_sum = degree_sum + degree;
-						degree_ave = degree_sum/(i+1-degree_skip);
-					}
-					else degree_skip++;
-				}
-				else if (bmp == null)
-					break;
+	//Need to find these point locations programatically
+//	private double angleCalculation(IplImage cannyImage){
+//		Point tip = new Point(37, 27);
+//		Point leftSide = new Point(27, 13);
+//		Point rightSide = new Point(49, 10);
+//		
+//		double top = Math.pow(tip.distanceTo(leftSide), 2) + Math.pow(tip.distanceTo(rightSide), 2) - Math.pow(leftSide.distanceTo(rightSide), 2);
+//		double bottom = 2*tip.distanceTo(leftSide)*tip.distanceTo(rightSide);
+//		
+//		return Math.acos(top/bottom)*(180/Math.PI);
+//	}
+
+	private int redAreaCalculation(IplImage imageToProcess){
+		//Columns
+		int numOfRedPixelsInMostRedColumn = 0;
+		int sumOfColumnsWithMaxRedPixels = 0;
+		
+		int redLimit = 145, greenLimit = 65, blueLimit = 50;
+		
+		for (int col = 0; col < imageToProcess.width(); col+=2){
+			int numOfRedPixels = 0;
+			
+			for (int row = 0; row < imageToProcess.height(); row++){
+				BytePointer imageRGBExtraction = imageToProcess.imageData();
+				int blue = (int) imageRGBExtraction.get(imageToProcess.widthStep()*row + col*3);
+				int green = (int) imageRGBExtraction.get(imageToProcess.widthStep()*row + col*3 + 1);
+				int red = (int) imageRGBExtraction.get(imageToProcess.widthStep()*row + col*3 + 2);
+				
+				if(blue < 0)
+					blue += 256;
+				if(green < 0)
+					green += 256;
+				if(red < 0)
+					red += 256;
+				
+		        if(red > redLimit && green < greenLimit && blue < blueLimit)
+		        	numOfRedPixels++;
+			}
+			
+			if (numOfRedPixels > numOfRedPixelsInMostRedColumn)
+				numOfRedPixelsInMostRedColumn = numOfRedPixels;
+			
+			if (numOfRedPixels > 10){
+				if (firstRedColumn <= 0)
+					firstRedColumn = col;
+				else lastRedColumn = col;
+			}
+		}
+		sumOfColumnsWithMaxRedPixels += numOfRedPixelsInMostRedColumn;
+		
+		//Rows
+		int numOfRedPixelsInMostRedRow = 1;
+		for (int row = 0; row < imageToProcess.height(); row+=3){
+			int numOfRedPixels = 0;
+			
+			for (int col = 0; col < imageToProcess.width(); col++){						
+				BytePointer imageRGBExtraction = imageToProcess.imageData();
+				int blue = (int) imageRGBExtraction.get(imageToProcess.widthStep()*row + col*3);
+				int green = (int) imageRGBExtraction.get(imageToProcess.widthStep()*row + col*3 + 1);
+				int red = (int) imageRGBExtraction.get(imageToProcess.widthStep()*row + col*3 + 2);
+				
+				if(blue < 0)
+					blue += 256;
+				if(green < 0)
+					green += 256;
+				if(red < 0)
+					red += 256;
+				
+				if(red > redLimit && green < greenLimit && blue < blueLimit)
+		        	numOfRedPixels++;
+			}
+			
+			if (numOfRedPixels > numOfRedPixelsInMostRedRow)
+				numOfRedPixelsInMostRedRow = numOfRedPixels;
+			
+			if (numOfRedPixels > 15){ //Red area, by start and finish rows, for Canny boundaries
+				if (firstRedRow <= 0)
+					firstRedRow = row;
+				else lastRedRow = row;
+			}
+		}
+		return sumOfColumnsWithMaxRedPixels;
+	}
+
+	private void createFolders(){		
+		new File(rootLocation + File.separator + "1_raw_images").mkdir();
+		new File(rootLocation + File.separator + "2_canny_images").mkdir();
+		new File(rootLocation + File.separator + "3_degree_images").mkdir();
+	}
+	
+	private void deleteFolders(boolean all){
+		if(all)
+			deleteDirectory(rootLocation);
+		else{
+			deleteDirectory(rootLocation + File.separator + "1_raw_images");
+    		deleteDirectory(rootLocation + File.separator + "2_canny_images");
+    		deleteDirectory(rootLocation + File.separator + "3_degree_images");
+		}
+	}
+	
+	private void deleteDirectory(String inputDirectory){
+		File fileOrDirectory = new File(inputDirectory);
+		if (fileOrDirectory.isDirectory())
+	        for (File child : fileOrDirectory.listFiles())
+	            deleteDirectory(child.toString());
+	    fileOrDirectory.delete();
+	}
+
+	private Result matchKeyToDatabase(double length, double angle, long runTime, int passes){
+		double threshold = 20;
+		double min = 100;
+		double lengthDelta, angleDelta;
+		Key minKey = null;
+		generateKeyDatabase();
+		
+		for(Key k : databaseKeys){
+			lengthDelta = Math.abs(k.getLength()-length)*3;
+			angleDelta = Math.abs(k.getAngle()-angle)*.75;
+			
+			if(lengthDelta+angleDelta < min){
+				min = lengthDelta+angleDelta;
+				minKey = k;
 			}
 		}
 		
-		//Release video
-		vidFile.release();
-		
-		//Match results to "database"
-		if (length > MS_2.length*(1-length_result_offset) && length < MS_2.length*(1+length_result_offset)
-				&& degree_ave > MS_2.degree*(1-degree_result_offset) && degree_ave < MS_2.degree*(1+degree_result_offset))
-			model_result = MS_2;
-		else if (length > UL_050.length*(1-length_result_offset) && length < UL_050.length*(1+length_result_offset)
-				&& degree_ave > UL_050.degree*(1-degree_result_offset) && degree_ave < UL_050.degree*(1+degree_result_offset))
-			model_result = UL_050;
-		else if (length > UNI_3.length*(1-length_result_offset) && length < UNI_3.length*(1+length_result_offset)
-				&& degree_ave > UNI_3.degree*(1-degree_result_offset) && degree_ave < UNI_3.degree*(1+degree_result_offset))
-			model_result = UNI_3;
-		else if (length > UL_054.length*(1-length_result_offset) && length < UL_054.length*(1+length_result_offset)
-				&& degree_ave > UL_054.degree*(1-degree_result_offset) && degree_ave < UL_054.degree*(1+degree_result_offset))
-			model_result = UL_054;
-		else keyModel = "No model found";
-		
-		keyModel = model_result.name;
-		
-		//Save process time
-		time = ((System.currentTimeMillis()-start)/1000);
-		
-		//Save results in array, and set TextView to show results
-		if (instance < ARRAY_SIZE)
-		{
-			ResultStorages[instance] = new ResultStorage(keyModel, length, degree_ave, time, counter);	
-			mTextView = (TextView) findViewById(R.id.TextView);	
-			ResultStorages[instance].setTextView(mTextView);
-		}
-		else //If array is filled, we drop the oldest result, move all other results down, and place newest result in last array slot
-		{
-			instance = (ARRAY_SIZE-1);
-			for (i = 0; i < instance; i++)
-				ResultStorages[i] = ResultStorages[i+1];
-			
-			ResultStorages[instance] = new ResultStorage(keyModel, length, degree_ave, time, counter);
-			mTextView = (TextView) findViewById(R.id.TextView);
-			ResultStorages[instance].setTextView(mTextView);
-		}		
-		
-		//Set boolean to true so past ResultStorages can be loaded
-		finished = true;
-		instance++;
-		pointer = instance - 1;
-				
-		if (model_found) //Set imageview with found key model image (and info on longpress)
-		{			
-			mImageView = (ImageView) findViewById(R.id.ImageView);
-			SetImageView.set(mImageView, keyModel, getBaseContext().getResources(), exist); //Method in SetImageView.java class
-			registerForContextMenu(mImageView);
-			if (!exist)
-				StatusAlert("Error", "Can't load " + keyModel + " imageview!");
-		}
-		else if (!model_found) //Otherwise, show info in TextView, and leave ImageView black
-		{
-			//TODO Implement closest match?
-			mTextView.setText(
-					"  Model\t\t\t\t\t\t\t\t" + "No model found" + 
-					"\n\n  Length\t\t\t\t\t\t\t\t" + String.format(Locale.ENGLISH, "%.3f", length) +"cm" +
-					"\n  Tip Angle\t\t\t\t\t\t" + String.format(Locale.ENGLISH, "%.3f", degree_ave) + "°" + 
-					"\n\n  Process time\t\t\t\t" + time + " seconds" +
-					"\n  Passes\t\t\t\t\t\t\t\t" + counter);		
-		}
-		
-		checkResultAvailLast(last_result, mLastResult);
-		checkResultAvailNext(next_result, mNextResult);
-		
-		RingtoneManager.getRingtone(getApplicationContext(), RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)).play();
-		/** End **/
-	}	
-	
-	//Method to delete a file or directory (and any content it may have)
-	public void DeleteFolder(File fileOrDirectory)
-	{
-	    if (fileOrDirectory.isDirectory())
-	        for (File child : fileOrDirectory.listFiles())
-	            DeleteFolder(child);
-	    fileOrDirectory.delete();
+		if(min <= threshold)
+			return new Result(minKey.getName(), length, angle, runTime, passes, 100-min);
+		return new Result("No model found", length, angle, runTime, passes, 100-min);
 	}
-	
-	//Toast pop-up
-	public void StatusToast(String statusString)
-	{
-		Toast status = Toast.makeText(getApplicationContext(), statusString, Toast.LENGTH_SHORT);
-		status.show();
-	}
-	
-	//Dialog pop-up
-	void StatusAlert(String title, String message)
-	{
-		AlertDialog alertDialog = new AlertDialog.Builder(this).create();
-        alertDialog.setTitle(title);
-        alertDialog.setMessage(message);
 
-        alertDialog.setButton(DialogInterface.BUTTON_POSITIVE , "Done", new DialogInterface.OnClickListener()
-        {
-			public void onClick(DialogInterface dialog, int which) {}
-		});
-        alertDialog.setIcon(R.drawable.ic_launcher);
-        alertDialog.show();
+	private void generateKeyDatabase(){
+		databaseKeys.add(new Key("MS2", 	4.2, 	90));
+		databaseKeys.add(new Key("UL050", 	5.5, 	87.5));
+		databaseKeys.add(new Key("UNI3", 	5.75, 	97.5));
+		databaseKeys.add(new Key("UL054", 	6, 		92.5));
 	}
 	
-	void StatusAlert(String title)
-	{
-		AlertDialog alertDialog = new AlertDialog.Builder(this).create();
-        alertDialog.setTitle(title);
-        alertDialog.show();
+	//Save results in array, and set TextView to show results
+	private void saveResult(Result analysisResult) {
+		analysisResults.add(analysisResult);
+		analysisResults.get(instanceCounter).setTextView((TextView) findViewById(R.id.TextView));
+		logPointer = instanceCounter++;
+				
+		SetImageView.set((ImageView) findViewById(R.id.ImageView), analysisResult.getName(), getBaseContext().getResources());
+		registerForContextMenu((ImageView) findViewById(R.id.ImageView));
+		
+		updateResultButtons();
+	}
+	
+	private void endingTone() {
+		if(((AudioManager) getSystemService(AUDIO_SERVICE)).getStreamVolume(AudioManager.STREAM_RING) == 0)
+			((Vibrator) getSystemService(Context.VIBRATOR_SERVICE)).vibrate(300);
+		else{
+			try {
+				MediaPlayer m = new MediaPlayer();
+				m.setDataSource(getApplicationContext(), RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
+				m.setAudioStreamType(AudioManager.STREAM_RING);
+				m.prepare();
+				m.start();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	private void statusToast(String statusMessage){
+		Toast.makeText(getApplicationContext(), statusMessage, Toast.LENGTH_SHORT).show();
 	}
 	
 	//Method to save Bitmap variable to file
-	void WriteImageToFile(Bitmap source, String folder, int image_number) throws IOException
-	{
+	private void writeImageToFile(Bitmap outputImage, String saveLocation, int imageNumber){
 		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-		source.compress(Bitmap.CompressFormat.PNG, 100, bytes);
-		File f = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser" + File.separator + folder + File.separator + String.format(Locale.ENGLISH, "%03d", image_number) + ".png");
-		f.createNewFile();
-		FileOutputStream fo = new FileOutputStream(f);
-		bytes.writeTo(fo);
-	}
-	
-	//Hijack intent data-stream, and save video file to defined location
-	private void handleCameraVideo(Intent intent)
-	{
-		tempFolder.mkdir();
-		try
-		{
-		    AssetFileDescriptor videoAsset = getContentResolver().openAssetFileDescriptor(intent.getData(), "r");
-		    FileInputStream fis = videoAsset.createInputStream();
-		    FileOutputStream fos = new FileOutputStream(v1);
-
-		    byte[] buf = new byte[40960];
-		    int len;
-		    while ((len = fis.read(buf)) > 0)
-		    {
-		        fos.write(buf, 0, len);
-		    }       
-		    fis.close();
-		    fos.close();
-		 }
-		catch (IOException io_e)
-		{
-			 io_e.printStackTrace();
+		outputImage.compress(Bitmap.CompressFormat.PNG, 100, bytes);
+		File f = new File(rootLocation + File.separator + saveLocation + File.separator + String.format(Locale.ENGLISH, "%03d", imageNumber) + ".png");
+		try {
+			f.createNewFile();
+			bytes.writeTo(new FileOutputStream(f));
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 
-	Button.OnClickListener mTakeVideo = new Button.OnClickListener()
-	{
-		public void onClick(View v)
-		{
+	public void onCreate(Bundle savedInstanceState){
+		super.onCreate(savedInstanceState);
+		setContentView(R.layout.main);
+		
+		Button takeVideo = (Button) findViewById(R.id.VideoIntent);
+		Button processVideo = (Button) findViewById(R.id.VideoProcess);
+		
+		setBtnListenerOrDisable(takeVideo, mTakeVideo, MediaStore.ACTION_VIDEO_CAPTURE);
+		setBtnListenerOrDisable(processVideo, mProcessVideo, MediaStore.ACTION_VIDEO_CAPTURE);
+		
+		updateResultButtons();
+	}
+	
+	Button.OnClickListener mTakeVideo = new Button.OnClickListener(){
+		public void onClick(View v){
 			TakeVideoIntent();
 		}
 	};
 	
-	Button.OnClickListener mProcessVideo = new Button.OnClickListener()
-	{	
-		public void onClick(View v)
-		{
-				try
-				{
-					ProcessVideo();
-				}
-				catch (IOException e)
-				{
-					e.printStackTrace();
-				}
+	Button.OnClickListener mProcessVideo = new Button.OnClickListener(){	
+		public void onClick(View v){
+			ProcessVideo();			
 		}
 	};
-	
-	Button.OnClickListener mLastResult = new Button.OnClickListener()
-	{
-		
-		public void onClick(View v)
-		{
-			pointer--;
-			if (pointer < 0)
-				pointer = 0;
-			
-			mTextView = (TextView) findViewById(R.id.TextView);
-			mImageView = (ImageView) findViewById(R.id.ImageView);
-			
-			//Reload ResultStorages in TextView
-			ResultStorages[pointer].setTextView(mTextView);
-			
-			//Reload key blank in ImageView
-			SetImageView.set(mImageView, keyModel, getBaseContext().getResources(), exist); //Method in SetImageView.java class
-			registerForContextMenu(mImageView);
-			
-			if (!exist)
-				StatusAlert("Error", "Can't load " + keyModel + " imageview!");
-			
-			checkResultAvailLast(last_result, mLastResult);
-			checkResultAvailNext(next_result, mNextResult);
-		}
-	};
-	
-	Button.OnClickListener mNextResult = new Button.OnClickListener()
-	{	
-		public void onClick(View v)
-		{
-			pointer++;
-			if (pointer > (ARRAY_SIZE-1))
-				pointer = (ARRAY_SIZE-1);
-			
-			mTextView = (TextView) findViewById(R.id.TextView);
-			mImageView = (ImageView) findViewById(R.id.ImageView);
-			
-			ResultStorages[pointer].setTextView(mTextView);
-			
-			SetImageView.set(mImageView, keyModel, getBaseContext().getResources(), exist); //Method in SetImageView.java class
-			registerForContextMenu(mImageView);
-			
-			if (!exist)
-				StatusAlert("Error", "Can't load " + keyModel + " imageview!");
-			
-			checkResultAvailLast(last_result, mLastResult);
-			checkResultAvailNext(next_result, mNextResult);
-		}
-	};
-
-	//Called when the activity is first created.
-	public void onCreate(Bundle savedInstanceState)
-	{
-		super.onCreate(savedInstanceState);
-		
-		//Set view to main page
-		setContentView(R.layout.main);
-		
-		//Initialise buttons (if intents are possible)
-		Button video_intent = (Button) findViewById(R.id.VideoIntent);
-		setBtnListenerOrDisable(video_intent, mTakeVideo, MediaStore.ACTION_VIDEO_CAPTURE);
-		
-		Button video_process = (Button) findViewById(R.id.VideoProcess);
-		setBtnListenerOrDisable(video_process, mProcessVideo, MediaStore.ACTION_VIDEO_CAPTURE);
-		
-		last_result = (Button) findViewById(R.id.LastLog);
-		checkResultAvailLast(last_result, mLastResult);
-		
-		next_result = (Button) findViewById(R.id.NextLog);
-		checkResultAvailNext(next_result, mNextResult);
-	}
 	
 	//Define menu
-	public boolean onCreateOptionsMenu(Menu menu)
-	{
+	public boolean onCreateOptionsMenu(Menu menu){
 	    MenuInflater inflater = getMenuInflater();
 	    inflater.inflate(R.menu.menu, menu);
 	    return true;
 	}
 	
-	public void onCreateContextMenu(ContextMenu menu, View v, ContextMenuInfo menuInfo)
-	{
-		super.onCreateContextMenu(menu, v, menuInfo);
-		if (keyModel.equals("No model found"))
-			StatusAlert(keyModel);
-		else
-		{
+	//Define context menu (for ImageView)
+	public void onCreateContextMenu(ContextMenu menu, View view, ContextMenuInfo menuInfo){
+		super.onCreateContextMenu(menu, view, menuInfo);
+		String keyModel = analysisResults.get(logPointer).getName();
+		if (!keyModel.equals("No model found")){
 			menu.setHeaderTitle(keyModel + " info");
-			menu.add(0, v.getId(), 0, "Open Catalogue (requires login)");
-			Key tempkey = null;
-			if (keyModel.equals("MS2"))
-				tempkey = MS_2;
-			else if (keyModel.equals("UL050"))
-				tempkey = UL_050;
-			else if (keyModel.equals("UNI3"))
-				tempkey = UNI_3;
-			else if (keyModel.equals("UL054"))
-				tempkey = UL_054;
+			menu.add(0, view.getId(), 0, "Open Catalogue (requires login)");
 			
-			if (tempkey == null){}
-			else
-			{
-				menu.add(0, v.getId(), 0, "Length:\t\t\t" + String.format(Locale.ENGLISH, "%.3f", tempkey.length) + "cm");
-				menu.add(0, v.getId(), 0, "Degree:\t\t\t" + tempkey.degree + "°");
+			Key tempKey = new Key();
+			boolean found = false;
+			int i = 0;
+			
+			while(!found && i++ < databaseKeys.size()){
+				if(keyModel.equals(databaseKeys.get(i).getName())){
+					tempKey = databaseKeys.get(i);
+					found = true;
+				}
+			}
+
+			if(tempKey != null){
+				menu.add(0, view.getId(), 0, "Length:\t\t\t" + String.format(Locale.ENGLISH, "%.3f", tempKey.getLength()) + "cm");
+				menu.add(0, view.getId(), 0, "Degree:\t\t\t" + tempKey.getAngle() + "°");
 			}
 		}
 	}
 	
-	public boolean onContextItemSelected(MenuItem item)
-	{
-		if(item.getTitle().equals("Open Catalogue (requires login)"))
-		{
-			Intent intent = new Intent();
-	        intent.setAction(Intent.ACTION_VIEW);
+	public boolean onContextItemSelected(MenuItem item){
+		if(item.getTitle().equals("Open Catalogue (requires login)")){
+			//Use intent to create link (could have used Linkify, but this was much simpler since I only need one link in the whole app)
+			Intent intent = new Intent(Intent.ACTION_VIEW);
 	        intent.addCategory(Intent.CATEGORY_BROWSABLE);
-	        intent.setData(Uri.parse("https://ekc.silca.biz/ricerche_stampa_chiave.php?chiave=" + keyModel));
+	        intent.setData(Uri.parse("https://ekc.silca.biz/ricerche_stampa_chiave.php?chiave=" + analysisResults.get(logPointer).getName()));
 	        startActivity(intent);
 		}
-		else return false;  
-		
 		return true;  
 	}
 	
-    //Handle item selection
-	public boolean onOptionsItemSelected(MenuItem item)
-	{
-		
+	public boolean onOptionsItemSelected(MenuItem item){
 		AlertDialog.Builder alert = new AlertDialog.Builder(this);
 
-		//Switch for menu options
 	    switch (item.getItemId()) {
 	        case R.id.settings:
-	        	if (passes == 1)
+	        	if (numOfPasses == 1)
 	        		alert.setTitle("Current setting: 1 frame");
-	        	else alert.setTitle("Current setting: " + passes + " frames"); //Shows max as 20, but only 19 frames? Problem between "counter" & "passes"?
+	        	else alert.setTitle("Current setting: " + numOfPasses + " frames");
 	        	
-	        	MediaMetadataRetriever vidFile = new MediaMetadataRetriever();
-    			vidFile.setDataSource(v1.getAbsolutePath());
-	        	
-	        	final int max_frames = (int) ((Long.parseLong(vidFile.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION))*10)/1000);
-	        	
-	        	alert.setMessage("Enter 1-"+ max_frames +", or 0 for max possible");
+	        	if(!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED))
+    				statusToast("SD card not mounted!");
+    			else if(!videoLocation.exists())
+    				statusToast("No video file to analyse!");
+    			else{
+    				MediaMetadataRetriever vidFile = new MediaMetadataRetriever();
+    				vidFile.setDataSource(videoLocation.getAbsolutePath());
+    				//Length of video file in seconds x10
+    				final int maxFramesAvailable = (int) ((Long.parseLong(vidFile.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION))*10)/1000);
+    	        	alert.setMessage("Enter 1-"+ maxFramesAvailable +", or 0 for max possible");
 
-	        	// Set an EditText view to get user input 
-	        	final EditText input = new EditText(this);
-	        	input.setInputType(InputType.TYPE_CLASS_PHONE);
-	        	alert.setView(input);
-	        	
-	        	alert.setPositiveButton("Ok", new DialogInterface.OnClickListener()
-	        	{
-		        	public void onClick(DialogInterface dialog, int whichButton)
-		        	{
-		        		String value = input.getText().toString();
-		        		
-		        		try
-		        		{
-		        			if (value.equals("")){
-			        			StatusToast("No value entered!");
-			        		}
-		        			else if (Integer.parseInt(value) > max_frames)
-			        		{
-			        			StatusToast("Entered value larger than " + max_frames + "!");
-			        		}
-		        			else if (Integer.parseInt(value) < 0)
-		        			{
-		        				StatusToast("Can't analyse negative frames!");
-		        			}
-			        		else if (Integer.parseInt(value) == 0)
-			        		{
-			        			if (!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED))
-			        				StatusToast("SD card not mounted!");
-			        			else if (!v1.exists())
-			        				StatusToast("No video file to analyse!");
-			        			else
-			        			{
-				        			passes = max_frames;
-				        			StatusToast("Set to " + passes + " frames");
-				        		}
-			        		}
-			        		else
-			        		{
-			        			passes = Integer.parseInt(value);
-			        			if (passes == 1)
-			        				StatusToast("Set to 1 frame");
-			        			else StatusToast("Set to " + passes + " frames");
-			        		}
-		        		}
-		        		catch(NumberFormatException e)
-		        		{
-			        		StatusToast("Number not entered!");
-		        	    }
-		        	}
-		        });
+    	        	//Set an EditText view to get user input 
+    	        	final EditText input = new EditText(this);
+    	        	input.setInputType(InputType.TYPE_CLASS_PHONE); //Set keyboard to phone keyboard (numerical keyboard was also an option)
+    	        	alert.setView(input);
+    	        	
+    	        	alert.setPositiveButton("Ok", new DialogInterface.OnClickListener(){
+    		        	public void onClick(DialogInterface dialog, int whichButton){
+    		        		String inputString = input.getText().toString(); 
+    		        		
+    		        		try{
+    		        			int value = Integer.parseInt(inputString);
+    		        			
+    		        			if (inputString.equals(""))
+    			        			statusToast("No value entered!");
+    		        			else if(value > maxFramesAvailable)
+    			        			statusToast("Entered value larger than " + maxFramesAvailable + "!");
+    		        			else if(value < 0)
+    		        				statusToast("Can't analyse negative frames!");
+    			        		else if(value == 0){
+				        			numOfPasses = maxFramesAvailable;
+				        			statusToast("Set to " + numOfPasses + " frames");
+    			        		}
+    			        		else{
+    			        			numOfPasses = value;
+    			        			if(numOfPasses == 1)
+    			        				statusToast("Set to 1 frame");
+    			        			else statusToast("Set to " + numOfPasses + " frames");
+    			        		}
+    		        		}
+    		        		catch(NumberFormatException e){
+    			        		statusToast("Number not entered!");
+    		        	    }
+    		        	}
+    		        });
 
-	        	alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener()
-	        	{
-	        		  public void onClick(DialogInterface dialog, int whichButton){}
-	        	});
-	        	alert.show();
-	            return true;
-	            
-	        case R.id.temp_files:
-	        	if (tempFolder.exists())
-	        	{
-	        		alert.setTitle("Would you like to delete the temp files?");
-	        	
-		        	alert.setPositiveButton("Yes", new DialogInterface.OnClickListener()
-		        	{
-			        	public void onClick(DialogInterface dialog, int whichButton)
-			        	{
-			        		DeleteFolder(tempFolder);
-			        		StatusToast("All temp files deleted!");
-			        	}
-			        });
-		        	
-		        	alert.setNeutralButton("Images only", new DialogInterface.OnClickListener()
-		        	{
-			        	public void onClick(DialogInterface dialog, int whichButton)
-			        	{
-			        		DeleteFolder(rawImageFolder);
-			        		DeleteFolder(cannyImageFolder);
-			        		DeleteFolder(degreeImageFolder);
-			        		StatusToast("All images deleted!");
-			        	}
-		        	});
-	
-		        	alert.setNegativeButton("No", new DialogInterface.OnClickListener()
-		        	{
-		        		  public void onClick(DialogInterface dialog, int whichButton){}
-		        	});
-		        	alert.show();
-	        	}
-	        	else StatusToast("No files to delete!");
+    	        	alert.setNegativeButton("Cancel", null);
+    	        	alert.show();
+    			}	        	
 	            return true;
 	            
 	        case R.id.clear:
-	        	if (finished)
-	        	{
-		        	alert.setTitle("Would you like to clear the screen?");
-		        	
-		        	alert.setPositiveButton("Yes", new DialogInterface.OnClickListener()
-		        	{
-			        	public void onClick(DialogInterface dialog, int whichButton)
-			        	{
-			        		//Clear TextView
-			        		mTextView.setText("");
-			        		//Clear ImageView
-			        		//mImageView.setImageDrawable(null);
-			        		mImageView.setVisibility(View.INVISIBLE);
-			        		//Disable button for next log (leave last log button)
-			        		next_result.setClickable(false);
-			    			next_result.setVisibility(View.INVISIBLE);
-			    			//Reset log count  to end
-			    			pointer = instance;
-			    			checkResultAvailLast(last_result, mLastResult);
-			        	}
-			        });
-	
-		        	alert.setNegativeButton("No", new DialogInterface.OnClickListener()
-		        	{
-		        		  public void onClick(DialogInterface dialog, int whichButton){}
-		        	});
-		        	alert.show();  	
+				if(analysisResults.isEmpty())
+					statusToast("Nothing to clear");
+				else{
+	        		((TextView) findViewById(R.id.TextView)).setText("");
+	        		((ImageView) findViewById(R.id.ImageView)).setVisibility(View.INVISIBLE);
+	        		
+	    			//Reset log count to end
+	    			logPointer = instanceCounter;
+	    			updateResultButtons();
+	        		disableButton((Button) findViewById(R.id.NextLog));
 	        	}
-	        	else StatusToast("Nothing to clear!");
 	        	return true;
+	            
+	        case R.id.temp_files:
+	        	if (new File(rootLocation).exists()){
+	        		deleteFolders(true);
+	        		statusToast("All temp files deleted!");
+	        	}
+	        	else statusToast("No files to delete!");
+	            return true;
+	            
+	        case R.id.temp_images:
+	        	if (new File(rootLocation).exists()){
+	        		deleteFolders(false);
+	        		statusToast("All images deleted!");
+	        	}
+	        	else statusToast("No files to delete!");
+	            return true;
 	        
 	        case R.id.quit:
-	        	if (tempFolder.exists())
-	        	{
-	        		alert.setTitle("Would you like to delete the temp files?");
-	        	
-		        	alert.setPositiveButton("Yes", new DialogInterface.OnClickListener()
-		        	{
-			        	public void onClick(DialogInterface dialog, int whichButton)
-			        	{
-			        		DeleteFolder(tempFolder);
-			        		finish();
-			        	}
-			        });
-		        	
-		        	alert.setNeutralButton("Images only", new DialogInterface.OnClickListener()
-		        	{
-			        	public void onClick(DialogInterface dialog, int whichButton)
-			        	{
-			        		DeleteFolder(rawImageFolder);
-			        		DeleteFolder(cannyImageFolder);
-			        		DeleteFolder(degreeImageFolder);
-			        		finish();
-			        	}
-		        	});
-	
-		        	alert.setNegativeButton("No", new DialogInterface.OnClickListener()
-		        	{
-		        		  public void onClick(DialogInterface dialog, int whichButton)
-		        		  {
-		        			finish();
-		        		  }
-		        	});
-		        	alert.show();
-	        	}
-	        	else finish();
+	        	finish();
 	        	return true;
 	            
 	        default:
@@ -813,112 +559,130 @@ public class KeyAnalyserActivity extends Activity
 	}
 	
 	//Handles intent data and saves to default DCIM folder (file name handles by device)
-	protected void onActivityResult(int requestCode, int resultCode, Intent data)
-	{
+	protected void onActivityResult(int requestCode, int resultCode, Intent data){
 		if (resultCode == RESULT_OK)
 			handleCameraVideo(data);
 	}
 	
+	//Hijack intent data-stream, and save video file to defined location
+	private void handleCameraVideo(Intent intent){
+		new File(rootLocation).mkdir();
+		try{
+		    AssetFileDescriptor videoAsset = getContentResolver().openAssetFileDescriptor(intent.getData(), "r");
+		    FileInputStream fis = videoAsset.createInputStream();
+		    FileOutputStream fos = new FileOutputStream(videoLocation);
+
+		    byte[] buf = new byte[40960]; //Possible runtime optimisation available here - need to test with recording video with smaller buf sizes
+		    int len;
+		    while ((len = fis.read(buf)) > 0)
+		        fos.write(buf, 0, len);   
+		    fis.close();
+		    fos.close();
+		}
+		catch (IOException e){
+			 e.printStackTrace();
+		}
+	}
+	
 	//Some callbacks so that the variables can survive orientation change
-	protected void onSaveInstanceState(Bundle outState)
-	{
+	protected void onSaveInstanceState(Bundle outState){
 		super.onSaveInstanceState(outState);
-		outState.putBoolean("Finished", finished);
-		outState.putDouble("Length", length);
-		outState.putDouble("Degree", degree_ave);
-		outState.putString("Model", keyModel);
-		outState.putInt("Counter", counter);
-		outState.putInt("Passes", passes);
-		outState.putInt("Instance", instance);
-		outState.putInt("Current Log", pointer);
-		outState.putLong("Time", time);
+		outState.putInt("Passes", numOfPasses);
+		outState.putInt("Instance", instanceCounter);
+		outState.putInt("Current Log", logPointer);
 	}
 	
 	//Restore variables on orientation change
-	protected void onRestoreInstanceState(Bundle savedInstanceState)
-	{
+	protected void onRestoreInstanceState(Bundle savedInstanceState){
 		super.onRestoreInstanceState(savedInstanceState);
-		finished = savedInstanceState.getBoolean("Finished");
-		length = savedInstanceState.getDouble("Length");
-		degree_ave = savedInstanceState.getDouble("Degree");
-		keyModel = savedInstanceState.getString("Model");
-		counter = savedInstanceState.getInt("Counter");
-		passes = savedInstanceState.getInt("Passes");
-		instance = savedInstanceState.getInt("Instance");
-		pointer = savedInstanceState.getInt("Current Log");
-		time = savedInstanceState.getLong("Time");
+		numOfPasses = savedInstanceState.getInt("Passes");
+		instanceCounter = savedInstanceState.getInt("Instance");
+		logPointer = savedInstanceState.getInt("Current Log");
 		
-		mImageView = (ImageView) findViewById(R.id.ImageView);
-		SetImageView.set(mImageView, keyModel, getBaseContext().getResources(), exist); //Method in SetImageView.java class
-		registerForContextMenu(mImageView);
-		if (!exist)
-			StatusAlert("Error", "Can't load " + keyModel + " imageview!");
+		String keyModel = analysisResults.get(logPointer).getName();
+		SetImageView.set((ImageView) findViewById(R.id.ImageView), keyModel, getBaseContext().getResources());
+		registerForContextMenu((ImageView) findViewById(R.id.ImageView));
 		
-		//Check to see which buttons should be clickable on orientation change
-		checkResultAvailLast(last_result, mLastResult);
-		checkResultAvailNext(next_result, mNextResult);
+		updateResultButtons();
 	}
 	
-	
-	/*** Indicates whether the specified action can be used as an intent. This
-	 * method queries the package manager for installed packages that can
-	 * respond to an intent with the specified action. If no suitable package is
-	 * found, this method returns false.
-	 * http://android-developers.blogspot.com/2009/01/can-i-use-this-intent.html
-	 */
-	
-	//Taken from photobyintent sample from developers.android.com
-	public static boolean isIntentAvailable(Context context, String action)
-	{
+	//Taken from 'photobyintent' sample from developers.android.com
+	public static boolean isIntentAvailable(Context context, String action){
 		final PackageManager packageManager = context.getPackageManager();
 		final Intent intent = new Intent(action);
 		List<ResolveInfo> list = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY);
 		return list.size() > 0;
 	}
 	
-	//If intent is available, set "Take Video" button as clickable (not certain it's needed, since no device has failed it yet)
-	private void setBtnListenerOrDisable(Button btn, Button.OnClickListener onClickListener, String intentName)
-	{
+	private void setBtnListenerOrDisable(Button btn, Button.OnClickListener onClickListener, String intentName){
 		if (isIntentAvailable(this, intentName))
 			btn.setOnClickListener(onClickListener);
-		else
-		{
+		else{
 			btn.setText(getText(R.string.cannot).toString() + " " + btn.getText());
 			btn.setClickable(false);
 		}
 	}
 	
-	//Check to see if "Last Log" button should be clickable/visible
-	private void checkResultAvailLast(Button btn, Button.OnClickListener onClickListener)
-	{
-		//Should only be shown if analysis has been run, and NOT at oldest ResultStorage
-		if (!finished || pointer < 1)
-		{
-			btn.setClickable(false);
-			btn.setVisibility(View.INVISIBLE);
+	private void updateResultButtons(){		
+		if(analysisResults.size() == 0 || !Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){
+			disableButton((Button) findViewById(R.id.LastLog));
+			disableButton((Button) findViewById(R.id.NextLog));
 		}
-		else
-		{
-			btn.setClickable(true);
-			btn.setVisibility(View.VISIBLE);
-			btn.setOnClickListener(onClickListener);
+		else{
+			if(logPointer < 1)
+				disableButton((Button) findViewById(R.id.LastLog));
+			else enableButton((Button) findViewById(R.id.LastLog), prevButtonListener);
+			
+			if(logPointer == instanceCounter-1)
+				disableButton((Button) findViewById(R.id.NextLog));
+			else enableButton((Button) findViewById(R.id.NextLog), nextButtonListener);
 		}
 	}
 	
-	//Check to see if "Next Log" button should be clickable/visible
-	private void checkResultAvailNext(Button btn, Button.OnClickListener onClickListener)
-	{
-		//Should only be shown if analysis has been run, and NOT at newest ResultStorage
-		if (!finished || pointer == (instance-1))
-		{
-			btn.setClickable(false);
-			btn.setVisibility(View.INVISIBLE);
+	Button.OnClickListener prevButtonListener = new Button.OnClickListener(){
+		public void onClick(View v){
+			logPointer--;
+			if (logPointer < 0)
+				logPointer = 0;
+			else if (logPointer > (analysisResults.size()-1))
+				logPointer = (analysisResults.size()-1);
+			
+			analysisResults.get(logPointer).setTextView((TextView) findViewById(R.id.TextView));
+			String keyModel = analysisResults.get(logPointer).getName();
+			
+			SetImageView.set((ImageView) findViewById(R.id.ImageView), keyModel, getBaseContext().getResources());
+			registerForContextMenu((ImageView) findViewById(R.id.ImageView));
+			
+			updateResultButtons();
 		}
-		else
-		{
-			btn.setClickable(true);
-			btn.setVisibility(View.VISIBLE);
-			btn.setOnClickListener(onClickListener);
+	};
+
+	Button.OnClickListener nextButtonListener = new Button.OnClickListener(){	
+		public void onClick(View v){
+			logPointer++;
+			if (logPointer > analysisResults.size()-1)
+				logPointer = analysisResults.size()-1;
+			else if (logPointer < 0)
+				logPointer = 0;
+			
+			analysisResults.get(logPointer).setTextView((TextView) findViewById(R.id.TextView));
+			String keyModel = analysisResults.get(logPointer).getName();
+			
+			SetImageView.set((ImageView) findViewById(R.id.ImageView), keyModel, getBaseContext().getResources());
+			registerForContextMenu((ImageView) findViewById(R.id.ImageView));
+			
+			updateResultButtons();
 		}
+	};
+	
+	private void enableButton(Button btn, Button.OnClickListener buttonListener){
+		btn.setClickable(true);
+		btn.setVisibility(View.VISIBLE);
+		btn.setOnClickListener(buttonListener);
+	}
+	
+	private void disableButton(Button btn){
+		btn.setClickable(false);
+		btn.setVisibility(View.INVISIBLE);
 	}
 }

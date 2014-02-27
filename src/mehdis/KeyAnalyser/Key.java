@@ -3,23 +3,43 @@ package mehdis.KeyAnalyser;
 //Class containing info for each key in DB
 public class Key {
 	
-	public String name;
-	public double length;
-	public int degree;
+	private String name;
+	private double length, angle;
 	
-	//Constructor
-	public Key(String _name, double _length, int _degree)
-	{
-		name = _name;
-		length = _length;
-		degree = _degree;
+	public Key(String name, double length, double angle){
+		this.name = name;
+		this.length = length;
+		this.angle = angle;
 	}
 	
 	//Constructor for default ResultStorage file (in case of no match)
-	public Key()
-	{
+	public Key(){
 		name = "No model found";
 		length = 0;
-		degree = 0; 
+		angle = 0; 
+	}
+
+	public String getName() {
+		return name;
+	}
+
+	public void setName(String name) {
+		this.name = name;
+	}
+
+	public double getLength() {
+		return length;
+	}
+
+	public void setLength(double length) {
+		this.length = length;
+	}
+
+	public double getAngle() {
+		return angle;
+	}
+
+	public void setAngle(double angle) {
+		this.angle = angle;
 	}
 }

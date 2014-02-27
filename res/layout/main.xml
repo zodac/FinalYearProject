@@ -32,9 +32,8 @@
         android:layout_alignTop="@+id/LastLog"
         android:layout_toLeftOf="@+id/NextLog"
         android:layout_toRightOf="@+id/LastLog"
-        android:textSize="17sp"
         android:textIsSelectable="true"
-    />
+        android:textSize="17sp" />
 
     <Button
         android:id="@+id/LastLog"
@@ -64,8 +63,7 @@
         android:layout_alignParentBottom="true"
         android:layout_below="@+id/TextView"
         android:layout_toLeftOf="@+id/NextLog"
-        android:textSize="15sp"
         android:contentDescription="@string/image_desc"
-    />
+        android:textSize="15sp" />
 
 </RelativeLayout>
