@@ -38,19 +38,30 @@ import android.media.RingtoneManager;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.text.InputType;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.Toast;
 
 public class PhotoIntentActivity extends Activity {	
 	
-	int passes = 1;
-	double MS_2 = 4.2, ASEC_1 = 5.4, UL_050 = 5.5, IE_6 = 5.55, BAS_1 = 5.6, UNI_3 = 5.75, UL_054 = 5.9, CS_17 = 6.0;
-	File tempFolder = new File(Environment.getExternalStorageDirectory().toString() + File.separator + "KeyAnalyser_tmp");
-	File rawImageFolder = new File(Environment.getExternalStorageDirectory().toString() + File.separator + "KeyAnalyser_tmp" + File.separator + "1_raw_images");
-	File cannyImageFolder = new File(Environment.getExternalStorageDirectory().toString() + File.separator + "KeyAnalyser_tmp" + File.separator + "2_canny_images");
-	File degreeImageFolder = new File(Environment.getExternalStorageDirectory().toString() + File.separator + "KeyAnalyser_tmp" + File.separator + "3_degree_images");
-	File v1 = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser_tmp" + File.separator + "video.mp4"); 
+	int passes = 1, counter = 0;
+	String keyModel = "No model found"; //Default output in case of no matches
+	double length, degree;
+	long time;
+	boolean finished = false;
+	
+	double MS_2 = 4.2, UL_050 = 5.5, UNI_3 = 5.75, UL_054 = 5.9;
+	int MS_2d = 90, UL_050d = 78, UNI_3d = 105, UL_054d = 95;
+	File v1 = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser" + File.separator + "video.mp4");
+	File tempFolder = new File(Environment.getExternalStorageDirectory().toString() + File.separator + "KeyAnalyser");
+	File rawImageFolder = new File(Environment.getExternalStorageDirectory().toString() + File.separator + "KeyAnalyser" + File.separator + "1_raw_images");
+	File cannyImageFolder = new File(Environment.getExternalStorageDirectory().toString() + File.separator + "KeyAnalyser" + File.separator + "2_canny_images");
+	File degreeImageFolder = new File(Environment.getExternalStorageDirectory().toString() + File.separator + "KeyAnalyser" + File.separator + "3_degree_images");	
 	
 	private void dispatchTakeVideoIntent() {
 		
@@ -65,35 +76,27 @@ public class PhotoIntentActivity extends Activity {
 		
 		/** Initialisation **/
 		
-		//Variables
 		long start = System.currentTimeMillis();
-		int counter = 0, red_count, c = 0, r = 0, min_row = 0, max_row = 0, i, image = 1, first_red = 0, last_red = 0, max_red = 0, max_red_col = 0, max_red_row = 0;
+		int red_count, c = 0, r = 0, min_row = 0, max_row = 0, i, image = 1, first_red = 0, last_red = 0, max_red = 0, max_red_col = 0, max_red_row = 0;
 		int first_red_col = 0, last_red_col = 0, row_ave = 0, first_red_row = 0, last_red_row = 0;
-		String keyModel = "No model found"; //Default output in case of no matches
 		double rho = 0, theta = 0, rho_ave = 0, theta_ave = 0;
-		double length;
+		
 		CvScalar test;
 
-		//Check it SD card is mount, and (if it is) if video.mp4 exists
+		//Check it SD card is mounted, and (if it is) if video.mp4 exists
 		if (!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED))
 			StatusToast("SD card not mounted!");
 		else if (!v1.exists())
 			StatusToast("No video file to analyse!");
-		
-		//Load video.mp4 as MMDR file for frame extraction
-		MediaMetadataRetriever vidFile = new MediaMetadataRetriever();
-		vidFile.setDataSource(v1.getAbsolutePath());
 
 		//Create folders
 		rawImageFolder.mkdir();
 		cannyImageFolder.mkdir(); //Only needed for debugging - left in for now
 		degreeImageFolder.mkdir();
 		
-		//Determine video.mp4 length (returns milliseconds - divide by 1,000)
-		//String value = vidFile.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
-		//long vidLength = (Long.parseLong(value)/1000);
+		MediaMetadataRetriever vidFile = new MediaMetadataRetriever();
+		vidFile.setDataSource(v1.getAbsolutePath());
 
-		//for(i = 0; i <= 10*vidLength ; i++, image++) //10*vidLength since I'm getting frames every 1/10th sec
 		for(i = 0; i < passes; i++, image++, counter++)
 		{
 			Bitmap bmp = vidFile.getFrameAtTime(100000*i, MediaMetadataRetriever.OPTION_CLOSEST);
@@ -110,7 +113,7 @@ public class PhotoIntentActivity extends Activity {
 		
 		for (i = 0, image = 1; i < counter; i++, image++){
 			
-			File imagePath = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser_tmp" + File.separator + "1_raw_images" + File.separator + String.format(Locale.ENGLISH, "%03d", image) + ".png");
+			File imagePath = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser" + File.separator + "1_raw_images" + File.separator + String.format(Locale.ENGLISH, "%03d", image) + ".png");
 			String img = imagePath.getAbsolutePath();
 			Bitmap bmp = BitmapFactory.decodeFile(img);
 			max_red = 1;
@@ -207,7 +210,7 @@ public class PhotoIntentActivity extends Activity {
 		
 		for(i = 0, image = 1; i < counter; i++, image++)
 		{
-			File imagePath = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser_tmp" + File.separator + "1_raw_images" + File.separator + String.format(Locale.ENGLISH, "%03d", image) + ".png");
+			File imagePath = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser" + File.separator + "1_raw_images" + File.separator + String.format(Locale.ENGLISH, "%03d", image) + ".png");
 			String img = imagePath.getAbsolutePath();
 			Bitmap bmp = BitmapFactory.decodeFile(img);
 			boolean min_found = false;
@@ -261,7 +264,7 @@ public class PhotoIntentActivity extends Activity {
 				}
 				
 				WriteImageToFile(temp, "3_degree_images", image);
-				imagePath = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser_tmp" + File.separator + "3_degree_images" + File.separator + String.format(Locale.ENGLISH, "%03d", image) +".png");
+				imagePath = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser" + File.separator + "3_degree_images" + File.separator + String.format(Locale.ENGLISH, "%03d", image) +".png");
 				img = imagePath.getAbsolutePath();
 				source = IplImage.create(temp.getWidth(), temp.getHeight(), IPL_DEPTH_8U, 4);
 				canny = IplImage.create(temp.getWidth(), temp.getHeight(), IPL_DEPTH_8U, 1);
@@ -299,57 +302,57 @@ public class PhotoIntentActivity extends Activity {
 				break;
 		}
 		
-		/** Delete temp folders **/
+		double raw_theta = theta_ave;
+		if (rho_ave < 0)
+			rho_ave = rho_ave*-1;
 		
-        //DeleteFolder(tempFolder); //Delete all temp files
-		DeleteFolder(rawImageFolder);
-		DeleteFolder(cannyImageFolder);
-		DeleteFolder(degreeImageFolder);
+        /** theta modifiers 
+         Emperical values, determined through testing keys of various angles, in multiple orientations
+        **/
+
+		if (raw_theta > 0 && raw_theta < 0.2)
+			theta_ave = theta_ave*3;
+		if (raw_theta > 0.6 && raw_theta < 0.9)
+			theta_ave = theta_ave/2;
+		if (raw_theta > 0.9 && raw_theta < 1)
+			theta_ave = theta_ave*8;
+		if (raw_theta > 1 && raw_theta < 2)
+			theta_ave = theta_ave/2;
+		if (raw_theta > 5 && raw_theta < 6)
+			theta_ave = 1.05/theta_ave;
+		if (raw_theta > 17)
+			theta_ave = theta_ave/6;
+	
+		/** Determine key model **/
 		
-		/** Calculations **/
+		degree = (rho_ave/theta_ave);
 		
 		if (row_ave == 0 || max_red_col == 0 || counter == 0)
 			length = 0;
 		else length = (row_ave/counter)*(17.5/(max_red_col/counter));
 		
-		if (length > MS_2*.975 && length < MS_2*1.025)
+		if (length > MS_2*.975 && length < MS_2*1.025 && degree > MS_2d*.925 && degree < MS_2d*1.075)
 			keyModel = "MS 2";
-		else if (length > UL_050*.975 && length < UL_050*1.025)
+		else if (length > UL_050*.975 && length < UL_050*1.025 && degree > UL_050d*.925 && degree < UL_050d*1.075)
 			keyModel = "UL 050";
-		else if (length > UNI_3*.975 && length < UNI_3*1.025)
+		else if (length > UNI_3*.975 && length < UNI_3*1.025 && degree > UNI_3d*.925 && degree < UNI_3d*1.075)
 			keyModel = "UNI 3";
-		else if (length > UL_054*.975 && length < UL_054*1.025)
+		else if (length > UL_054*.975 && length < UL_054*1.025 && degree > UL_054d*.925 && degree < UL_054d*1.075)
 			keyModel = "UL 054";
+		
+		/** Display results **/
 		
 		RingtoneManager.getRingtone(getApplicationContext(), RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)).play();
         //MediaPlayer.create(getBaseContext(), R.raw.op).start()
-		
-		//double raw_rho = rho_ave, raw_theta = theta_ave;
-		
-        /** rho & theta modifiers **/
-		
-		if (rho_ave < 0)
-			rho_ave = rho_ave*-1;
-		
-		if (theta_ave > 0 && theta_ave < 0.2)
-			theta_ave = theta_ave*3;
-		if (theta_ave > 0.6 && theta_ave < 0.9)
-			theta_ave = theta_ave/2;
-		if (theta_ave > 0.9 && theta_ave < 1)
-			theta_ave = theta_ave*8;
-		if (theta_ave > 1 && theta_ave < 2)
-			theta_ave = theta_ave/2;
-		if (theta_ave > 5)
-			theta_ave = 1.05/theta_ave;
+		time = ((System.currentTimeMillis() - start)/1000);
 	
-		/** Display results **/
-		
 		StatusAlert(keyModel,
-					"Length                 " + String.format(Locale.ENGLISH, "%.2f", length) +"cm" + 
-					"\nTip Angle             " + String.format(Locale.ENGLISH, "%.1f", (rho_ave/theta_ave)) + "°" +
-					"\nProcess time      " + ((System.currentTimeMillis() - start)/1000) + " seconds"
-					+ "\n" +
-					/*"\nRatio pixel/cm    " + String.format(Locale.ENGLISH, "%.3f", (17.5/(max_red_col/counter))) +
+					"Length                 " + String.format(Locale.ENGLISH, "%.3f", length) +"cm" + 
+					"\nTip Angle             " + String.format(Locale.ENGLISH, "%.1f", degree) + "°" +
+					"\nProcess time      " + time + " seconds"
+					+
+					/* + "\n"
+					+ "\nRatio pixel/cm    " + String.format(Locale.ENGLISH, "%.3f", (17.5/(max_red_col/counter))) +
 					"\nFirst Col               " + first_red_col +
 					"\nLast Col               " + last_red_col +
 					"\nFirst Red Row      " + first_red_row +
@@ -359,22 +362,24 @@ public class PhotoIntentActivity extends Activity {
 					"\nRow Ave               " + (row_ave/counter) +*/
 					"\nRho 			       	      " + String.format(Locale.ENGLISH, "%.0f", rho_ave) +
 					"\nTheta		               " + String.format(Locale.ENGLISH, "%.3f", theta_ave) +
-					//"\nRho (raw)           " + String.format(Locale.ENGLISH, "%.0f", raw_rho) +
-					//"\nTheta (raw)         " + String.format(Locale.ENGLISH, "%.3f", raw_theta) +
-					"\nPasses                 " + counter);
+					"\nTheta (raw)         " + String.format(Locale.ENGLISH, "%.3f", raw_theta) +
+					"\nPasses                " + counter
+					);
+		
+		finished = true;
 					
 		/** End **/
 	}	
 	
 	//Method to delete a file or directory (and any content it may have)
-	void DeleteFolder(File fileOrDirectory) {
+	public void DeleteFolder(File fileOrDirectory) {
 	    if (fileOrDirectory.isDirectory())
 	        for (File child : fileOrDirectory.listFiles())
 	            DeleteFolder(child);
 	    fileOrDirectory.delete();
 	}
 	
-	void StatusToast(String statusString){
+	public void StatusToast(String statusString){
 		Toast status = Toast.makeText(getApplicationContext(), statusString, Toast.LENGTH_LONG);
 		status.show();
 	}
@@ -394,7 +399,7 @@ public class PhotoIntentActivity extends Activity {
 	void WriteImageToFile(Bitmap source, String folder, int image_number) throws IOException{
 		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 		source.compress(Bitmap.CompressFormat.PNG, 100, bytes);
-		File f = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser_tmp" + File.separator + folder + File.separator + String.format(Locale.ENGLISH, "%03d", image_number) + ".png");
+		File f = new File(Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser" + File.separator + folder + File.separator + String.format(Locale.ENGLISH, "%03d", image_number) + ".png");
 		f.createNewFile();
 		FileOutputStream fo = new FileOutputStream(f);
 		bytes.writeTo(fo);
@@ -464,6 +469,166 @@ public class PhotoIntentActivity extends Activity {
 		);
 	}
 	
+	public boolean onCreateOptionsMenu(Menu menu) {
+	    MenuInflater inflater = getMenuInflater();
+	    inflater.inflate(R.menu.menu, menu);
+	    return true;
+	}
+	
+	public boolean onOptionsItemSelected(MenuItem item) {
+	    // Handle item selection
+		AlertDialog.Builder alert = new AlertDialog.Builder(this);
+	    switch (item.getItemId()) {
+	        case R.id.settings:
+	        	if (passes == 1)
+	        		alert.setTitle("Current setting: 1 frame");
+	        	else alert.setTitle("Current setting: " + passes + " frames");
+	        	alert.setMessage("Enter 1-15, or 0 for max possible");
+
+	        	// Set an EditText view to get user input 
+	        	final EditText input = new EditText(this);
+	        	input.setInputType(InputType.TYPE_CLASS_PHONE);
+	        	alert.setView(input);
+	        	
+	        	alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+		        	public void onClick(DialogInterface dialog, int whichButton) {
+		        		String value = input.getText().toString();
+		        		
+		        		try{
+		        			if (value.equals("")){
+			        			//value = "1";
+			        			StatusToast("No value entered!");
+			        		}
+		        			else if (Integer.parseInt(value) > 15)
+			        		{
+			        			//value = "1";
+			        			StatusToast("Entered value larger than 15!");
+			        		}
+		        			else if (Integer.parseInt(value) < 0)
+		        			{
+		        				StatusToast("Can't analyse negative frames!");
+		        			}
+			        		else if (Integer.parseInt(value) == 0)
+			        		{
+			        			//Load video.mp4 as MMDR file for frame extraction
+			        			MediaMetadataRetriever vidFile = new MediaMetadataRetriever();
+			        			vidFile.setDataSource(v1.getAbsolutePath());
+			        			
+			        			//Determine video.mp4 length (returns milliseconds - divide by 1,000)
+			        			String x = vidFile.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION);
+			        			long vidLength = (Long.parseLong(x)/1000);
+			        			passes = (int) (vidLength*10);
+			        		}
+			        		else passes = Integer.parseInt(value);
+		        		} catch(NumberFormatException e) {
+		        			//value = "1";
+			        		StatusToast("Number not entered!");
+		        	    }
+		        	}
+		        });
+
+	        	alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+	        		  public void onClick(DialogInterface dialog, int whichButton) {
+	        		    // Canceled.
+	        		  }
+	        	});
+	        	alert.show();
+	            return true;
+	            
+	        case R.id.log:
+	        	if (finished)
+	        	{
+		        	StatusAlert(keyModel + " (last result)",
+							"Length                 " + String.format(Locale.ENGLISH, "%.3f", length) +"cm" + 
+							"\nTip Angle             " + String.format(Locale.ENGLISH, "%.1f", degree) + "°" +
+							"\nProcess time      " + time + " seconds" + 
+							"\nPasses                " + counter
+							);
+	        	}
+	        	else StatusToast("No analysis done!");
+	            return true;
+	            
+	        case R.id.temp_files:
+	        	if (tempFolder.exists())
+	        	{
+		        	alert.setTitle("Really?");
+		        	alert.setMessage("Are you sure?");
+		        	
+		        	alert.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+			        	public void onClick(DialogInterface dialog, int whichButton) {
+			        		DeleteFolder(tempFolder);
+			        		StatusToast("All files deleted!");
+			        	}
+			        });
+
+		        	alert.setNegativeButton("No", new DialogInterface.OnClickListener() {
+		        		  public void onClick(DialogInterface dialog, int whichButton) {
+		        		    // Canceled.
+		        		  }
+		        	});
+		        	alert.show();	
+	        	}
+	        	else StatusToast("No files to delete!");
+	            return true;
+	            
+	        case R.id.temp_images:
+	        	if (rawImageFolder.exists())
+	        	{
+	        		alert.setTitle("Really?");
+		        	alert.setMessage("Are you sure?");
+		        	
+		        	alert.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+			        	public void onClick(DialogInterface dialog, int whichButton) {
+			        		DeleteFolder(rawImageFolder);
+			        		DeleteFolder(cannyImageFolder);
+			        		DeleteFolder(degreeImageFolder);
+			        		StatusToast("Image files deleted!");
+			        	}
+			        });
+
+		        	alert.setNegativeButton("No", new DialogInterface.OnClickListener() {
+		        		  public void onClick(DialogInterface dialog, int whichButton) {
+		        		    // Canceled.
+		        		  }
+		        	});
+		        	alert.show();
+	        	}
+	        	else StatusToast("No images to delete!");
+	            return true;
+	        
+	        case R.id.quit:
+	        	alert.setTitle("Would you like to delete the temp files?");
+	        	//alert.setMessage("Are you sure?");
+	        	
+	        	alert.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
+		        	public void onClick(DialogInterface dialog, int whichButton) {
+		        		DeleteFolder(tempFolder);
+		        		finish();
+		        	}
+		        });
+	        	
+	        	alert.setNeutralButton("Images only", new DialogInterface.OnClickListener() {
+		        	public void onClick(DialogInterface dialog, int whichButton) {
+		        		DeleteFolder(rawImageFolder);
+		        		DeleteFolder(cannyImageFolder);
+		        		DeleteFolder(degreeImageFolder);
+		        		finish();
+		        	}
+	        	});
+
+	        	alert.setNegativeButton("No", new DialogInterface.OnClickListener() {
+	        		  public void onClick(DialogInterface dialog, int whichButton) {
+	        			finish();
+	        		  }
+	        	});
+	        	alert.show();
+	        	return true;
+	            
+	        default:
+	            return super.onOptionsItemSelected(item);
+	    }
+	}
+	
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		if (resultCode == RESULT_OK)
 			handleCameraVideo(data);
@@ -472,10 +637,24 @@ public class PhotoIntentActivity extends Activity {
 	// Some lifecycle callbacks so that the image can survive orientation change
 	protected void onSaveInstanceState(Bundle outState) {
 		super.onSaveInstanceState(outState);
+		outState.putBoolean("Finished", finished);
+		outState.putDouble("Degree", degree);
+		outState.putDouble("Length", length);
+		outState.putString("Model", keyModel);
+		outState.putInt("Counter", counter);
+		outState.putInt("Passes", passes);
+		outState.putLong("Time", time);
 	}
 	
 	protected void onRestoreInstanceState(Bundle savedInstanceState) {
 		super.onRestoreInstanceState(savedInstanceState);
+		finished = savedInstanceState.getBoolean("Finished");
+		degree = savedInstanceState.getDouble("Degree");
+		length = savedInstanceState.getDouble("Length");
+		keyModel = savedInstanceState.getString("Model");
+		counter = savedInstanceState.getInt("Counter");
+		passes = savedInstanceState.getInt("Passes");
+		time = savedInstanceState.getLong("Time");
 	}
 	
 	/*** Indicates whether the specified action can be used as an intent. This
