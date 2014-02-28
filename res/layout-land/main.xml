@@ -14,7 +14,7 @@
         android:layout_alignParentLeft="true"
         android:layout_alignParentTop="true"
         android:layout_alignRight="@+id/VideoProcess"
-        android:text="@string/video_intent" />
+        android:text="@string/videoIntent" />
 
     <Button
         android:id="@+id/VideoProcess"
@@ -23,7 +23,7 @@
         android:layout_alignParentLeft="true"
         android:layout_below="@+id/VideoIntent"
         android:layout_toLeftOf="@+id/ImageView"
-        android:text="@string/video_process" />
+        android:text="@string/videoProcess" />
 
     <Button
         android:id="@+id/LastLog"
@@ -63,7 +63,7 @@
         android:layout_alignParentBottom="true"
         android:layout_alignParentRight="true"
         android:layout_alignParentTop="true"
-        android:contentDescription="@string/image_desc"
+        android:contentDescription="@string/imageDesc"
         android:textSize="15sp" />
 
 </RelativeLayout>

@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">KeyAnalyser</string>
-    <string name="video_intent">Take Video</string>
-    <string name="video_process">Process</string>
-    <string name="cannot">Cannot</string>
+    <string name="appName">KeyAnalyser</string>
+    <string name="videoIntent">Take Video</string>
+    <string name="videoProcess">Process</string>
     <string name="settings">Settings</string>
-    <string name="temp_files">Delete all files</string>
-    <string name="temp_images">Delete images only</string>
+    <string name="tempFiles">Delete all files</string>
+    <string name="tempImages">Delete images only</string>
     <string name="log">Last result</string>
     <string name="clear">Clear screen</string>
     <string name="quit">Close KeyAnalyser</string>
     <string name="left">&lt;</string>
     <string name="right">&gt;</string>
-    <string name="image_desc">Key Model Number</string>
+    <string name="imageDesc">Key Model Number</string>
+    <string name="silcaSite">https://ekc.silca.biz/ricerche_stampa_chiave.php?chiave=</string>
 </resources>

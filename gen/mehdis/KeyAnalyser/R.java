@@ -11,17 +11,17 @@ public final class R {
     public static final class attr {
     }
     public static final class drawable {
-        public static final int ic_clear=0x7f020000;
-        public static final int ic_delete=0x7f020001;
-        public static final int ic_launcher=0x7f020002;
-        public static final int ic_log=0x7f020003;
-        public static final int ic_ms2=0x7f020004;
-        public static final int ic_quit=0x7f020005;
-        public static final int ic_quit_huge=0x7f020006;
-        public static final int ic_settings=0x7f020007;
-        public static final int ic_ul050=0x7f020008;
-        public static final int ic_ul054=0x7f020009;
-        public static final int ic_uni3=0x7f02000a;
+        public static final int clear=0x7f020000;
+        public static final int delete=0x7f020001;
+        public static final int launcher=0x7f020002;
+        public static final int log=0x7f020003;
+        public static final int ms2=0x7f020004;
+        public static final int quit=0x7f020005;
+        public static final int quit_huge=0x7f020006;
+        public static final int settings=0x7f020007;
+        public static final int ul050=0x7f020008;
+        public static final int ul054=0x7f020009;
+        public static final int uni3=0x7f02000a;
     }
     public static final class id {
         public static final int ImageView=0x7f060005;
@@ -43,18 +43,18 @@ public final class R {
         public static final int menu=0x7f050000;
     }
     public static final class string {
-        public static final int app_name=0x7f040000;
-        public static final int cannot=0x7f040003;
-        public static final int clear=0x7f040008;
-        public static final int image_desc=0x7f04000c;
-        public static final int left=0x7f04000a;
-        public static final int log=0x7f040007;
-        public static final int quit=0x7f040009;
-        public static final int right=0x7f04000b;
-        public static final int settings=0x7f040004;
-        public static final int temp_files=0x7f040005;
-        public static final int temp_images=0x7f040006;
-        public static final int video_intent=0x7f040001;
-        public static final int video_process=0x7f040002;
+        public static final int appName=0x7f040000;
+        public static final int clear=0x7f040007;
+        public static final int imageDesc=0x7f04000b;
+        public static final int left=0x7f040009;
+        public static final int log=0x7f040006;
+        public static final int quit=0x7f040008;
+        public static final int right=0x7f04000a;
+        public static final int settings=0x7f040003;
+        public static final int silcaSite=0x7f04000c;
+        public static final int tempFiles=0x7f040004;
+        public static final int tempImages=0x7f040005;
+        public static final int videoIntent=0x7f040001;
+        public static final int videoProcess=0x7f040002;
     }
 }
