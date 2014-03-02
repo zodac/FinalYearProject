@@ -13,4 +13,7 @@
     <string name="right">&gt;</string>
     <string name="imageDesc">Key Model Number</string>
     <string name="silcaSite">https://ekc.silca.biz/ricerche_stampa_chiave.php?chiave=</string>
+    <string name="sdCardNotMounted">"SD card not mounted!"</string>
+    <string name="noVideoFile">No video file to analyse!</string>
+    <string name="openCatalogue">Open Catalogue (requires login)</string>
 </resources>

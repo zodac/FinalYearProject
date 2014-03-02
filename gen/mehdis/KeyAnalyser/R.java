@@ -15,26 +15,21 @@ public final class R {
         public static final int delete=0x7f020001;
         public static final int launcher=0x7f020002;
         public static final int log=0x7f020003;
-        public static final int ms2=0x7f020004;
+        public static final int notfound=0x7f020004;
         public static final int quit=0x7f020005;
-        public static final int quit_huge=0x7f020006;
-        public static final int settings=0x7f020007;
-        public static final int ul050=0x7f020008;
-        public static final int ul054=0x7f020009;
-        public static final int uni3=0x7f02000a;
+        public static final int settings=0x7f020006;
     }
     public static final class id {
-        public static final int ImageView=0x7f060005;
-        public static final int LastLog=0x7f060003;
-        public static final int NextLog=0x7f060004;
+        public static final int CounterView=0x7f060004;
+        public static final int ImageView=0x7f060003;
         public static final int TextView=0x7f060002;
         public static final int VideoIntent=0x7f060000;
         public static final int VideoProcess=0x7f060001;
-        public static final int clear=0x7f060007;
-        public static final int quit=0x7f06000a;
-        public static final int settings=0x7f060006;
-        public static final int temp_files=0x7f060008;
-        public static final int temp_images=0x7f060009;
+        public static final int clear=0x7f060006;
+        public static final int quit=0x7f060009;
+        public static final int settings=0x7f060005;
+        public static final int temp_files=0x7f060007;
+        public static final int temp_images=0x7f060008;
     }
     public static final class layout {
         public static final int main=0x7f030000;
@@ -48,8 +43,11 @@ public final class R {
         public static final int imageDesc=0x7f04000b;
         public static final int left=0x7f040009;
         public static final int log=0x7f040006;
+        public static final int noVideoFile=0x7f04000e;
+        public static final int openCatalogue=0x7f04000f;
         public static final int quit=0x7f040008;
         public static final int right=0x7f04000a;
+        public static final int sdCardNotMounted=0x7f04000d;
         public static final int settings=0x7f040003;
         public static final int silcaSite=0x7f04000c;
         public static final int tempFiles=0x7f040004;

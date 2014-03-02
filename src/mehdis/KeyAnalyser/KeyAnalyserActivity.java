@@ -23,7 +23,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Locale;
 
 import android.app.Activity;
@@ -31,8 +30,6 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
 import android.graphics.Color;
@@ -43,6 +40,7 @@ import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.os.Vibrator;
 import android.provider.MediaStore;
 import android.text.InputType;
@@ -51,7 +49,9 @@ import android.view.ContextMenu.ContextMenuInfo;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.View.OnTouchListener;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -65,42 +65,47 @@ import com.googlecode.javacv.cpp.opencv_core.CvSeq;
 import com.googlecode.javacv.cpp.opencv_core.IplImage;
 
 public class KeyAnalyserActivity extends Activity{	
-	int numOfPasses = 1;
-	int instanceCounter = 0;
-	int logPointer = 0;
+	private static final String ROOT_LOCATION = Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser";
+	private static final File VIDEO_LOCATION = new File(ROOT_LOCATION + File.separator + "video.mp4");
 	
-	int firstRedColumn = 0;
-	int lastRedColumn = 0;
-	int firstRedRow = 0;
-	int lastRedRow = 0;
+	private int numOfPasses = 1;
+	private int instanceCounter = 0;
+	private int logPointer = 0;
+	private int firstRedColumn = 0;
+	private int lastRedColumn = 0;
+	private int firstRedRow = 0;
+	private int lastRedRow = 0;
+	private float prevX = -1;
+	private boolean onTouchBlocked = false;
+	private Handler onTouchHandler = new Handler();
+	private ArrayList<Result> analysisResults = new ArrayList<Result>();
+	private TextView resultView;
+	private TextView counterView;
+	private ImageView keyView;
 	
-	ArrayList<Result> analysisResults = new ArrayList<Result>();
-	ArrayList<Key> databaseKeys = new ArrayList<Key>();
-	
-	String rootLocation = Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser";
-	File videoLocation = new File(rootLocation + File.separator + "video.mp4");
+	public static ArrayList<Key> databaseKeys = new ArrayList<Key>();
 	
 	private void TakeVideoIntent(){
 		if(Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){
 			Intent takeVideoIntent = new Intent(MediaStore.ACTION_VIDEO_CAPTURE);
 			startActivityForResult(takeVideoIntent, 3);
 		} else{
-			statusToast("SD card not mounted!");
+			statusToast(String.valueOf(getText(R.string.sdCardNotMounted)));
 		}
 	}
 	
 	private void ProcessVideo(){
 		long startTime = System.currentTimeMillis();	
 		
-		if(!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED))
-			statusToast("SD card not mounted!");
-		else if(!videoLocation.exists())
-			statusToast("No video file to analyse!");
-		else{
+		if(!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){
+			statusToast(String.valueOf(getText(R.string.sdCardNotMounted)));
+		} else if(!VIDEO_LOCATION.exists()){
+			statusToast(String.valueOf(getText(R.string.noVideoFile)));
+		} else{
 			createWorkFolders();
 			
 			MediaMetadataRetriever videoFile = new MediaMetadataRetriever();
-			videoFile.setDataSource(videoLocation.getAbsolutePath());
+			videoFile.setDataSource(VIDEO_LOCATION.getAbsolutePath());
 			Bitmap extractedFrame = videoFile.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST);
 			
 			int i = 0;
@@ -111,7 +116,7 @@ public class KeyAnalyserActivity extends Activity{
 			
 			while(extractedFrame != null && i < numOfPasses){
 				writeImageToFile(extractedFrame, "1_raw_images", ++imageCount);
-				IplImage imageToProcess = cvLoadImage(rootLocation + File.separator + "1_raw_images" + File.separator + String.format(Locale.ENGLISH, "%03d", imageCount) + ".png");	
+				IplImage imageToProcess = cvLoadImage(ROOT_LOCATION + File.separator + "1_raw_images" + File.separator + String.format(Locale.ENGLISH, "%03d", imageCount) + ".png");	
 				
 				/**
 				 * Determine red area for pixel/cm ratio & red area boundary (for cvCanny)
@@ -160,7 +165,7 @@ public class KeyAnalyserActivity extends Activity{
 				isolateKeyTip(imageCount, imageToProcess, cannyImage, lastObjectPixelRow);
 				
 				//Load image for degree calculation
-				imageToProcess = cvLoadImage(rootLocation + File.separator + "2_canny_images" + File.separator + String.format(Locale.ENGLISH, "%03d", imageCount) + ".png");
+				imageToProcess = cvLoadImage(ROOT_LOCATION + File.separator + "2_canny_images" + File.separator + String.format(Locale.ENGLISH, "%03d", imageCount) + ".png");
 				cannyImage = IplImage.create(imageToProcess.width(), imageToProcess.height(), IPL_DEPTH_8U, 1);
 				cvCvtColor(imageToProcess, cannyImage, CV_BGR2GRAY);
 			
@@ -170,6 +175,7 @@ public class KeyAnalyserActivity extends Activity{
 				extractedFrame = videoFile.getFrameAtTime(100000*++i, MediaMetadataRetriever.OPTION_CLOSEST);
 			}
 			videoFile.release();
+
 			Result analysisResult = matchKeyToDatabase(length, degreeAverage, (System.currentTimeMillis()-startTime)/1000, imageCount);
 			saveResult(analysisResult);
 			endingTone();
@@ -317,18 +323,18 @@ public class KeyAnalyserActivity extends Activity{
 	}
 
 	private void createWorkFolders(){		
-		new File(rootLocation + File.separator + "1_raw_images").mkdir();
-		new File(rootLocation + File.separator + "2_canny_images").mkdir();
-		new File(rootLocation + File.separator + "3_degree_images").mkdir();
+		new File(ROOT_LOCATION + File.separator + "1_raw_images").mkdir();
+		new File(ROOT_LOCATION + File.separator + "2_canny_images").mkdir();
+		new File(ROOT_LOCATION + File.separator + "3_degree_images").mkdir();
 	}
 	
 	private void deleteWorkFolders(boolean all){
 		if(all){
-			deleteDirectory(rootLocation);
+			deleteDirectory(ROOT_LOCATION);
 		} else{
-			deleteDirectory(rootLocation + File.separator + "1_raw_images");
-    		deleteDirectory(rootLocation + File.separator + "2_canny_images");
-    		deleteDirectory(rootLocation + File.separator + "3_degree_images");
+			deleteDirectory(ROOT_LOCATION + File.separator + "1_raw_images");
+    		deleteDirectory(ROOT_LOCATION + File.separator + "2_canny_images");
+    		deleteDirectory(ROOT_LOCATION + File.separator + "3_degree_images");
 		}
 	}
 	
@@ -342,23 +348,30 @@ public class KeyAnalyserActivity extends Activity{
 	}
 
 	private Result matchKeyToDatabase(double length, double angle, long runTime, int passes){
-		double threshold = 20;
+		double errorThreshold = 15;
+		double lengthThreshold = 2.5;
 		double min = 100;
-		double lengthDelta, angleDelta;
+		double lengthDelta;
+		double angleDelta;
+		double confidence;
 		Key minKey = null;
-		generateKeyDatabase();
 		
+		if(length < lengthThreshold){
+			return new Result("No model found", length, angle, runTime, passes, 100-min);
+		}
+
 		for(Key key : databaseKeys){
 			lengthDelta = Math.abs(key.getLength()-length)*3;
 			angleDelta = Math.abs(key.getAngle()-angle)*0.75;
+			confidence = lengthDelta + angleDelta;
 			
-			if(lengthDelta+angleDelta < min){
-				min = lengthDelta + angleDelta;
+			if(confidence < min){
+				min = confidence;
 				minKey = key;
 			}
 		}
 		
-		if(min <= threshold){
+		if(min <= errorThreshold){
 			return new Result(minKey.getModelName(), length, angle, runTime, passes, 100-min);
 		}
 		return new Result("No model found", length, angle, runTime, passes, 100-min);
@@ -373,13 +386,10 @@ public class KeyAnalyserActivity extends Activity{
 	
 	private void saveResult(Result analysisResult) {
 		analysisResults.add(analysisResult);
-		analysisResults.get(instanceCounter).setTextView((TextView) findViewById(R.id.TextView));
+		analysisResults.get(instanceCounter).setTextView(resultView, counterView, logPointer, analysisResults.size());
 		logPointer = instanceCounter++;
 				
-		SetImageView.set((ImageView) findViewById(R.id.ImageView), analysisResult.getModelName(), getBaseContext().getResources());
-		registerForContextMenu((ImageView) findViewById(R.id.ImageView));
-		
-		updateResultButtons();
+		SetImageView.setImageViewFromLocalFile(keyView, analysisResult.getModelName());
 	}
 	
 	private void endingTone() {
@@ -387,11 +397,11 @@ public class KeyAnalyserActivity extends Activity{
 			((Vibrator) getSystemService(Context.VIBRATOR_SERVICE)).vibrate(300);
 		} else{
 			try {
-				MediaPlayer m = new MediaPlayer();
-				m.setDataSource(getApplicationContext(), RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
-				m.setAudioStreamType(AudioManager.STREAM_RING);
-				m.prepare();
-				m.start();
+				MediaPlayer media = new MediaPlayer();
+				media.setDataSource(getApplicationContext(), RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
+				media.setAudioStreamType(AudioManager.STREAM_RING);
+				media.prepare();
+				media.start();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -409,7 +419,7 @@ public class KeyAnalyserActivity extends Activity{
 	private void writeImageToFile(Bitmap outputImage, String saveLocation, int imageNumber){
 		ByteArrayOutputStream bytes = new ByteArrayOutputStream();
 		outputImage.compress(Bitmap.CompressFormat.PNG, 100, bytes);
-		File imageFile = new File(rootLocation + File.separator + saveLocation + File.separator + String.format(Locale.ENGLISH, "%03d", imageNumber) + ".png");
+		File imageFile = new File(ROOT_LOCATION + File.separator + saveLocation + File.separator + String.format(Locale.ENGLISH, "%03d", imageNumber) + ".png");
 		try {
 			imageFile.createNewFile();
 			bytes.writeTo(new FileOutputStream(imageFile));
@@ -422,23 +432,27 @@ public class KeyAnalyserActivity extends Activity{
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
 		
-		Button takeVideo = (Button) findViewById(R.id.VideoIntent);
-		Button processVideo = (Button) findViewById(R.id.VideoProcess);
+		((Button) findViewById(R.id.VideoIntent)).setOnClickListener(mTakeVideo);
+		((Button) findViewById(R.id.VideoProcess)).setOnClickListener(mProcessVideo);
 		
-		setBtnListenerOrDisable(takeVideo, mTakeVideo, MediaStore.ACTION_VIDEO_CAPTURE);
-		setBtnListenerOrDisable(processVideo, mProcessVideo, MediaStore.ACTION_VIDEO_CAPTURE);
+		resultView = (TextView) findViewById(R.id.TextView);
+		counterView = (TextView) findViewById(R.id.CounterView);
+		keyView = (ImageView) findViewById(R.id.ImageView);
 		
-		updateResultButtons();
+		keyView.setOnTouchListener(new MyTouchListener());
+		resultView.setOnTouchListener(new MyTouchListener());
+		registerForContextMenu(keyView);
+		generateKeyDatabase();
 	}
 	
-	Button.OnClickListener mTakeVideo = new Button.OnClickListener(){
-		public void onClick(View view){
+	private Button.OnClickListener mTakeVideo = new Button.OnClickListener(){
+		public void onClick(final View view){
 			TakeVideoIntent();
 		}
 	};
 	
-	Button.OnClickListener mProcessVideo = new Button.OnClickListener(){	
-		public void onClick(View view){
+	private Button.OnClickListener mProcessVideo = new Button.OnClickListener(){	
+		public void onClick(final View view){
 			ProcessVideo();			
 		}
 	};
@@ -449,29 +463,29 @@ public class KeyAnalyserActivity extends Activity{
 	    return true;
 	}
 	
-	//Define context menu (for ImageView)
 	public void onCreateContextMenu(ContextMenu menu, View view, ContextMenuInfo menuInfo){
 		super.onCreateContextMenu(menu, view, menuInfo);
 		String keyModelName = analysisResults.get(logPointer).getModelName();
 		
 		if(!keyModelName.equals("No model found")){
 			menu.setHeaderTitle(keyModelName + " info");
-			menu.add(0, view.getId(), 0, "Open Catalogue (requires login)");
-			
+			menu.add(0, view.getId(), 0, String.valueOf(getText(R.string.openCatalogue)));
+
 			for(Key key : databaseKeys){
 				if(keyModelName.equals(key.getModelName())){
-					menu.add(0, view.getId(), 0, "Length:\t\t\t" + String.format(Locale.ENGLISH, "%.3f", key.getLength()) + "cm");
-					menu.add(0, view.getId(), 0, "Degree:\t\t\t" + key.getAngle() + "°");
+					int viewId = view.getId();
+					menu.add(0, viewId, 0, String.format(Locale.ENGLISH, "%-15s%.1fcm", "Length:", key.getLength()));
+					menu.add(0, viewId, 0, String.format(Locale.ENGLISH, "%-15s%.1f°", "Degree:", key.getAngle()));
 				}
 			}
 		}
 	}
 	
 	public boolean onContextItemSelected(MenuItem item){
-		if(item.getTitle().equals("Open Catalogue (requires login)")){
+		if(item.getTitle().equals(String.valueOf(getText(R.string.openCatalogue)))){
 			Intent intent = new Intent(Intent.ACTION_VIEW);
 	        intent.addCategory(Intent.CATEGORY_BROWSABLE);
-	        intent.setData(Uri.parse(getText(R.string.silcaSite) + "https://ekc.silca.biz/ricerche_stampa_chiave.php?chiave=" + analysisResults.get(logPointer).getModelName()));
+	        intent.setData(Uri.parse(getText(R.string.silcaSite) + analysisResults.get(logPointer).getModelName()));
 	        startActivity(intent);
 		}
 		return true;  
@@ -490,11 +504,11 @@ public class KeyAnalyserActivity extends Activity{
 	        	
 	        	if(!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){
     				statusToast("SD card not mounted!");
-	        	} else if(!videoLocation.exists()){
+	        	} else if(!VIDEO_LOCATION.exists()){
     				statusToast("No video file to analyse!");
 	        	} else{
     				MediaMetadataRetriever vidFile = new MediaMetadataRetriever();
-    				vidFile.setDataSource(videoLocation.getAbsolutePath());
+    				vidFile.setDataSource(VIDEO_LOCATION.getAbsolutePath());
     				//Length of video file in seconds x10
     				final int maxFramesAvailable = (int) ((Long.parseLong(vidFile.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION))*10)/1000);
     	        	alert.setMessage("Enter 1-"+ maxFramesAvailable +", or 0 for max possible");
@@ -543,18 +557,19 @@ public class KeyAnalyserActivity extends Activity{
 				if(analysisResults.isEmpty()){
 					statusToast("Nothing to clear");
 				} else{
-	        		((TextView) findViewById(R.id.TextView)).setText("");
-	        		((ImageView) findViewById(R.id.ImageView)).setVisibility(View.INVISIBLE);
+	        		resultView.setText("");
+	        		counterView.setText("");
+	        		keyView.setImageDrawable(null);
 	        		
 	    			//Reset log count to end
 	    			logPointer = instanceCounter;
-	    			updateResultButtons();
-	        		disableButton((Button) findViewById(R.id.NextLog));
+//	    			updateResultButtons();
+//	        		disableButton((Button) findViewById(R.id.NextLog));
 	        	}
 	        	return true;
 	            
 	        case R.id.temp_files:
-	        	if (new File(rootLocation).exists()){
+	        	if (new File(ROOT_LOCATION).exists()){
 	        		deleteWorkFolders(true);
 	        		statusToast("All temp files deleted!");
 	        	} else{
@@ -563,7 +578,7 @@ public class KeyAnalyserActivity extends Activity{
 	            return true;
 	            
 	        case R.id.temp_images:
-	        	if (new File(rootLocation).exists()){
+	        	if (new File(ROOT_LOCATION).exists()){
 	        		deleteWorkFolders(false);
 	        		statusToast("All images deleted!");
 	        	} else{
@@ -581,19 +596,19 @@ public class KeyAnalyserActivity extends Activity{
 	}
 	
 	//Handles intent data and saves to default DCIM folder (file name handles by device)
-	protected void onActivityResult(int requestCode, int resultCode, Intent data){
+	protected void onActivityResult(int requestCode, int resultCode, Intent intent){
 		if (resultCode == RESULT_OK){
-			handleCameraVideo(data);
+			handleCameraVideo(intent);
 		}
 	}
 	
 	//Hijack intent data-stream, and save video file to defined location
 	private void handleCameraVideo(Intent intent){
-		new File(rootLocation).mkdir();
+		new File(ROOT_LOCATION).mkdir();
 		try{
 		    AssetFileDescriptor videoAsset = getContentResolver().openAssetFileDescriptor(intent.getData(), "r");
 		    FileInputStream fis = videoAsset.createInputStream();
-		    FileOutputStream fos = new FileOutputStream(videoLocation);
+		    FileOutputStream fos = new FileOutputStream(VIDEO_LOCATION);
 
 		    byte[] buf = new byte[4096]; //Possible optimisation available here - need to test with recording video with smaller buf sizes
 		    int len;
@@ -607,109 +622,58 @@ public class KeyAnalyserActivity extends Activity{
 		}
 	}
 	
-	//Some callbacks so that the variables can survive orientation change
-	protected void onSaveInstanceState(Bundle outState){
-		super.onSaveInstanceState(outState);
-		outState.putInt("Passes", numOfPasses);
-		outState.putInt("Instance", instanceCounter);
-		outState.putInt("Current Log", logPointer);
-	}
-	
-	//Restore variables on orientation change
-	protected void onRestoreInstanceState(Bundle savedInstanceState){
-		super.onRestoreInstanceState(savedInstanceState);
-		numOfPasses = savedInstanceState.getInt("Passes");
-		instanceCounter = savedInstanceState.getInt("Instance");
-		logPointer = savedInstanceState.getInt("Current Log");
-		
-		String keyModel = analysisResults.get(logPointer).getModelName();
-		SetImageView.set((ImageView) findViewById(R.id.ImageView), keyModel, getBaseContext().getResources());
-		registerForContextMenu((ImageView) findViewById(R.id.ImageView));
-		
-		updateResultButtons();
-	}
-	
-	//Taken from 'photobyintent' sample from developers.android.com
-	public static boolean isIntentAvailable(Context context, String action){
-		final PackageManager packageManager = context.getPackageManager();
-		final Intent intent = new Intent(action);
-		List<ResolveInfo> list = packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY);
-		
-		return (list.size() > 0);
-	}
-	
-	private void setBtnListenerOrDisable(Button btn, Button.OnClickListener onClickListener, String intentName){
-		if (isIntentAvailable(this, intentName)){
-			btn.setOnClickListener(onClickListener);
-		} else{
-			btn.setText("Cannot " + btn.getText());
-			btn.setClickable(false);
+	public void loadPreviousResult() {
+		logPointer--;
+		if(logPointer < 0){
+			logPointer = 0;
+		} else if(logPointer > (analysisResults.size()-1)){
+			logPointer = (analysisResults.size()-1);
 		}
+		showResult();
 	}
 	
-	private void updateResultButtons(){		
-		if(analysisResults.size() == 0 || !Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){
-			disableButton((Button) findViewById(R.id.LastLog));
-			disableButton((Button) findViewById(R.id.NextLog));
-		} else{
-			if(logPointer < 1){
-				disableButton((Button) findViewById(R.id.LastLog));
-			} else{
-				enableButton((Button) findViewById(R.id.LastLog), prevButtonListener);
-			}
-			
-			if(logPointer == instanceCounter-1){
-				disableButton((Button) findViewById(R.id.NextLog));
-			} else{
-				enableButton((Button) findViewById(R.id.NextLog), nextButtonListener);
-			}
+	public void loadNextResult() {
+		logPointer++;
+		if(logPointer > analysisResults.size()-1){
+			logPointer = analysisResults.size()-1;
+		} else if(logPointer < 0){
+			logPointer = 0;
 		}
+		showResult();
 	}
 	
-	Button.OnClickListener prevButtonListener = new Button.OnClickListener(){
-		public void onClick(View view){
-			logPointer--;
-			if(logPointer < 0){
-				logPointer = 0;
-			} else if(logPointer > (analysisResults.size()-1)){
-				logPointer = (analysisResults.size()-1);
-			}
-			
-			loadResult();
-		}
-	};
-
-	Button.OnClickListener nextButtonListener = new Button.OnClickListener(){	
-		public void onClick(View view){
-			logPointer++;
-			if(logPointer > analysisResults.size()-1){
-				logPointer = analysisResults.size()-1;
-			} else if(logPointer < 0){
-				logPointer = 0;
-			}
-			
-			loadResult();
-		}
-	};
-	
-	public void loadResult() {
-		analysisResults.get(logPointer).setTextView((TextView) findViewById(R.id.TextView));
+	public void showResult() {
+		analysisResults.get(logPointer).setTextView(resultView, counterView, logPointer+1, analysisResults.size());
 		String keyModel = analysisResults.get(logPointer).getModelName();
 		
-		SetImageView.set((ImageView) findViewById(R.id.ImageView), keyModel, getBaseContext().getResources());
-		registerForContextMenu((ImageView) findViewById(R.id.ImageView));
-		
-		updateResultButtons();
+		SetImageView.setImageViewFromLocalFile(keyView, keyModel);
 	}
 	
-	private void enableButton(Button button, Button.OnClickListener buttonListener){
-		button.setClickable(true);
-		button.setVisibility(View.VISIBLE);
-		button.setOnClickListener(buttonListener);
-	}
-	
-	private void disableButton(Button button){
-		button.setClickable(false);
-		button.setVisibility(View.INVISIBLE);
+	private class MyTouchListener implements OnTouchListener{
+		@Override
+		public boolean onTouch(View v, MotionEvent event) {
+			final float currentX = event.getX();
+            
+            if(!onTouchBlocked){
+            	onTouchBlocked = true;
+            	onTouchHandler.postDelayed(new Runnable() {
+            		@Override
+					public void run() {
+						onTouchBlocked = false;
+						if(prevX == -1){
+			            	prevX = currentX;
+			            }
+						float delta = prevX-currentX; 
+						
+			            if(delta < 0){
+			            	loadNextResult();
+			            } else if(delta > 0){
+			            	loadPreviousResult();
+			            }
+					}
+				}, 500);
+            }          
+            return false;
+		}
 	}
 }

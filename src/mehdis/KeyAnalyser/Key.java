@@ -3,7 +3,8 @@ package mehdis.KeyAnalyser;
 public class Key {
 	
 	private String modelName;
-	private double length, angle;
+	private double length;
+	private double angle;
 	
 	public Key(String modelName, double length, double angle){
 		this.modelName = modelName;

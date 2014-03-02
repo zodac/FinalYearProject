@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
+    android:gravity="top"
     android:keepScreenOn="true"
-	>
+    android:orientation="vertical" >
+
     <Button
         android:id="@+id/VideoIntent"
         android:layout_width="wrap_content"
-        android:layout_height="75dp"
+        android:layout_height="60dp"
         android:layout_alignParentLeft="true"
         android:layout_alignParentRight="true"
         android:layout_alignParentTop="true"
-        android:text="@string/videoIntent"
-    />
+        android:text="@string/videoIntent" />
+
     <Button
         android:id="@+id/VideoProcess"
         android:layout_width="wrap_content"
-        android:layout_height="75dp"
+        android:layout_height="60dp"
         android:layout_alignParentLeft="true"
         android:layout_alignParentRight="true"
         android:layout_below="@+id/VideoIntent"
@@ -29,41 +29,29 @@
         android:id="@+id/TextView"
         android:layout_width="wrap_content"
         android:layout_height="150dp"
-        android:layout_alignTop="@+id/LastLog"
-        android:layout_toLeftOf="@+id/NextLog"
-        android:layout_toRightOf="@+id/LastLog"
-        android:textIsSelectable="true"
-        android:textSize="17sp" />
-
-    <Button
-        android:id="@+id/LastLog"
-        android:layout_width="35dp"
-        android:layout_height="75dp"
-        android:layout_alignParentBottom="true"
         android:layout_alignParentLeft="true"
-        android:layout_below="@+id/VideoProcess"
-        android:text="@string/left"
-    />
-
-    <Button
-        android:id="@+id/NextLog"
-        android:layout_width="35dp"
-        android:layout_height="75dp"
-        android:layout_alignBottom="@+id/LastLog"
         android:layout_alignParentRight="true"
-        android:layout_alignTop="@+id/TextView"
-        android:text="@string/right"
-    />
+        android:layout_below="@+id/VideoProcess"
+        android:textIsSelectable="true"
+        android:textSize="15sp" />
 
     <ImageView
         android:id="@+id/ImageView"
         android:layout_width="wrap_content"
-        android:layout_height="150dp"
-        android:layout_alignLeft="@+id/TextView"
-        android:layout_alignParentBottom="true"
+        android:layout_height="270dp"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
         android:layout_below="@+id/TextView"
-        android:layout_toLeftOf="@+id/NextLog"
-        android:contentDescription="@string/imageDesc"
-        android:textSize="15sp" />
+        android:contentDescription="@string/imageDesc" />
+
+    <TextView
+        android:id="@+id/CounterView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:layout_below="@+id/ImageView"
+        android:textSize="17sp" />
 
 </RelativeLayout>

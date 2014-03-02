@@ -22,29 +22,28 @@ public class Result{
 	}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
 	
 	public String getModelName(){
-		return modelName;
+		return this.modelName;
 	}
 	
-	public void setTextView(TextView mTextView){
-
-		String nameOutput = "\tModel\t\t\t\t\t\t\t\t" + modelName + " (" + String.format(Locale.ENGLISH, "%.1f", confidenceLevel) + "%)";
-		String lengthOutput = String.format(Locale.ENGLISH, "%.3f", length) + "cm";
-		String angleOutput = String.format(Locale.ENGLISH, "%.3f", angle) + "°";
+	public void setTextView(TextView resultView, TextView counterView, int currentResult, int totalResults){
+		String nameOutput = String.format(Locale.ENGLISH, "\tModel%44s (%.1f%%)", this.modelName, this.confidenceLevel);
+		String lengthOutput = String.format(Locale.ENGLISH, "%.3f", this.length) + "cm";
+		String angleOutput = String.format(Locale.ENGLISH, "%.3f", this.angle) + "°";
 		
-		if(modelName.equals("No model found")){
-			nameOutput = "\t\t\t\t\tNo model found (" + String.format(Locale.ENGLISH, "%.1f", confidenceLevel) + "%)";
+		if(this.modelName.equals("No model found")){
+			nameOutput = String.format(Locale.ENGLISH, "%45s (%.1f%%)", "No model found", this.confidenceLevel);
 		}
-		if(Double.isNaN(length) || length == Double.POSITIVE_INFINITY || length == Double.NEGATIVE_INFINITY){
+		if(Double.isNaN(this.length) || this.length == Double.POSITIVE_INFINITY || this.length == Double.NEGATIVE_INFINITY){
 			lengthOutput = "-";
 		}
-		if(Double.isNaN(angle)){
+		if(Double.isNaN(this.angle)){
 			angleOutput = "-";
 		}
 		
-		mTextView.setText(nameOutput + 
-					      "\n\n\tLength\t\t\t\t\t\t\t" + lengthOutput +
-					      "\n\tTip Angle\t\t\t\t\t\t" + angleOutput + 
-					      "\n\n\tProcess time\t\t\t\t" + runTime + " seconds" +
-					      "\n\tPasses\t\t\t\t\t\t\t" + imageCount);
+		resultView.setText(nameOutput + 
+					      String.format(Locale.ENGLISH, "\n\n\tLength%45s\n\tTip Angle%40s", lengthOutput, angleOutput) + 
+					      String.format(Locale.ENGLISH, "\n\n\tProcess time%29d seconds\n\tPasses%38d", this.runTime, this.imageCount));
+		
+		counterView.setText(String.format(Locale.ENGLISH, "%46s", currentResult + " of " + totalResults));
 	}
 }
