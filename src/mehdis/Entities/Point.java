@@ -1,4 +1,4 @@
-package mehdis.KeyAnalyser;
+package mehdis.Entities;
 public class Point {
 	
 	private int x;

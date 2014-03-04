@@ -16,16 +16,15 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Locale;
 
+import mehdis.Entities.Boundary;
+import mehdis.Entities.Key;
+import mehdis.Entities.Result;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.media.AudioManager;
 import android.media.MediaMetadataRetriever;
-import android.media.MediaPlayer;
-import android.media.RingtoneManager;
 import android.os.AsyncTask;
 import android.os.Environment;
-import android.os.Vibrator;
 import android.widget.Toast;
 
 import com.googlecode.javacpp.BytePointer;
@@ -35,16 +34,13 @@ import com.googlecode.javacv.cpp.opencv_core.CvSeq;
 import com.googlecode.javacv.cpp.opencv_core.IplImage;
 
 public class VideoProcesser extends AsyncTask<Void, Void, Void>{
-	private static final String ROOT_LOCATION = Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser";
-	private static final File VIDEO_LOCATION = new File(ROOT_LOCATION + File.separator + "video.mp4");
+	private static final String ROOT_LOCATION = KeyAnalyserActivity.ROOT_LOCATION;
+	private static final File VIDEO_LOCATION = KeyAnalyserActivity.VIDEO_LOCATION;
 	
-//	protected static VideoProcesser instance;
-	private int firstRedColumn = 0;
-	private int lastRedColumn = 0;
-	private int firstRedRow = 0;
-	private int lastRedRow = 0;
-	Context context;
-	int numOfPasses;
+	private int numOfPasses;
+	private Boundary redAreaBoundary = new Boundary();
+	private Context context;
+	private Result result;
 	
 	public VideoProcesser(Context context, int numOfPasses){
 		this.context = context;
@@ -53,33 +49,15 @@ public class VideoProcesser extends AsyncTask<Void, Void, Void>{
 	
 	@Override
 	protected Void doInBackground(Void... params) {
-		Result result = processVideo();
-		KeyAnalyserActivity.result = result;
+		result = processVideo();
+		KeyAnalyserActivity.setResult(result);
 		return null;
 	}
+	
+	@Override
 	protected void onPostExecute(Void result) {
 		KeyAnalyserActivity.saveResult();
-		endingTone();
-	}
-	
-	private void endingTone() {
-		if(isPhoneSilent()){
-			((Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE)).vibrate(300);
-		} else{
-			try {
-				MediaPlayer completedNotification = new MediaPlayer();
-				completedNotification.setDataSource(context.getApplicationContext(), RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
-				completedNotification.setAudioStreamType(AudioManager.STREAM_RING);
-				completedNotification.prepare();
-				completedNotification.start();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-	
-	private boolean isPhoneSilent() {
-		return ((AudioManager) context.getSystemService(Context.AUDIO_SERVICE)).getStreamVolume(AudioManager.STREAM_RING) == 0;
+		KeyAnalyserActivity.showNotification();
 	}
 	
 	private void statusToast(String statusMessage){
@@ -115,7 +93,6 @@ public class VideoProcesser extends AsyncTask<Void, Void, Void>{
 			
 			int i = 0;
 			int imageCount = 0;
-			
 			double length = 0;
 			double degreeAverage = 0;
 			
@@ -132,27 +109,28 @@ public class VideoProcesser extends AsyncTask<Void, Void, Void>{
 				 * Moving on to cvCanny analysis: isolating image within red area (with boundaries defined by first_red_row, last_red_row, first_red_col & last_red_col)
 				 */
 		        //Apply cvCanny
+
+		        int rowOffset = imageToProcess.height()/200; //Offsets used for red boundaries (since usually the video isn't straight)
+		        Boundary objectPixels = new Boundary();
+		        
 				IplImage cannyImage = IplImage.create(imageToProcess.width(), imageToProcess.height(), IPL_DEPTH_8U, 1);
 		        cvCanny(imageToProcess, cannyImage, 75, 165, 3);
 		       
-		        int row_offset = imageToProcess.height()/200; //Offsets used for red boundaries (since usually the video isn't straight)
-		        int firstObjectPixelRow = 0;
-		        int lastObjectPixelRow = 0;
 		        Bitmap cannyResultImage = Bitmap.createBitmap(imageToProcess.width(), imageToProcess.height(), Bitmap.Config.ARGB_8888);
 		        
 		        //If within these boundaries, apply cvCanny, otherwise leave empty (for .png, this results in transparent space around the image)
-		        for(int row = firstRedRow+(4*row_offset); row < lastRedRow-(4*row_offset); row++){
-		        	int col_offset = imageToProcess.width()/110;
-		        	for(int col = firstRedColumn+(7*col_offset); col < lastRedColumn-(7*col_offset); col++){
+		        for(int row = redAreaBoundary.getNorth()+(4*rowOffset); row < redAreaBoundary.getSouth()-(4*rowOffset); row++){
+		        	int colOffset = imageToProcess.width()/110;
+		        	for(int col = redAreaBoundary.getWest()+(7*colOffset); col < redAreaBoundary.getEast()-(7*colOffset); col++){
 			            int keyPixel = (int) cvGet2D(cannyImage, row, col).getVal(0);
 
 			            if (keyPixel > 100){
 			            	cannyResultImage.setPixel(col, row, Color.argb(255, 255, 255, keyPixel)); //Object pixel
 			            	
-			            	if(firstObjectPixelRow <= 0){
-			            		firstObjectPixelRow = row;
+			            	if(objectPixels.getNorth() <= 0){
+			            		objectPixels.setNorth(row);
 			            	} else{
-			            		lastObjectPixelRow = row;
+			            		objectPixels.setSouth(row);
 			            	}
 			            } else{
 			            	cannyResultImage.setPixel(col, row, Color.argb(255, 0, 0, keyPixel)); //Background pixel
@@ -161,13 +139,13 @@ public class VideoProcesser extends AsyncTask<Void, Void, Void>{
 		        }
 				writeImageToFile(cannyResultImage, String.valueOf(context.getText(R.string.cannyImagesFolder)), imageCount);
 				
-				length = (lastObjectPixelRow-firstObjectPixelRow)*(17.5/sizeOfMaxRedColumn);
+				length = (objectPixels.getSouth()-objectPixels.getNorth())*(17.5/sizeOfMaxRedColumn);
 				
 				/**
 				 * Create images for degree calculation - trying to isolate the tip of the key and some of the rows above it
 				 */
 				//Define area to isolate and save to file
-				isolateKeyTip(imageCount, imageToProcess, cannyImage, lastObjectPixelRow);
+				isolateKeyTip(imageCount, imageToProcess, cannyImage, objectPixels.getSouth());
 				
 				//Load image for degree calculation
 				imageToProcess = cvLoadImage(ROOT_LOCATION + File.separator + String.valueOf(context.getText(R.string.cannyImagesFolder)) + File.separator + String.format(Locale.ENGLISH, "%03d", imageCount) + ".png");
@@ -186,24 +164,32 @@ public class VideoProcesser extends AsyncTask<Void, Void, Void>{
 		return analysisResult;
 		/** End **/
 	}
+	
+	private void createWorkFolders(){
+		new File(ROOT_LOCATION + File.separator + String.valueOf(context.getText(R.string.rawImagesFolder))).mkdir();
+		new File(ROOT_LOCATION + File.separator + String.valueOf(context.getText(R.string.cannyImagesFolder))).mkdir();
+		new File(ROOT_LOCATION + File.separator + String.valueOf(context.getText(R.string.degreeImagesFolder))).mkdir();
+	}
 
 	private void isolateKeyTip(int imageCount, IplImage imageToProcess, IplImage cannyImage, int lastObjectPixelRow) {
 		Bitmap cannyResultImage;
-		int row_offset_degree = imageToProcess.height()/200;
-		int source_col = firstRedColumn+(imageToProcess.width()/3);
+		int rowOffsetDegree = imageToProcess.height()/200;
+		int sourceCol = redAreaBoundary.getWest()+(imageToProcess.width()/3);
 		
-		if ((lastRedColumn-(imageToProcess.width()/3))-(firstRedColumn+(imageToProcess.width()/3)) < 0){
-			cannyResultImage = Bitmap.createBitmap(imageToProcess.width()/3, ((7*row_offset_degree)+1), Bitmap.Config.ARGB_8888);
+		if ((redAreaBoundary.getEast()-(imageToProcess.width()/3))-(redAreaBoundary.getWest()+(imageToProcess.width()/3)) < 0){
+			cannyResultImage = Bitmap.createBitmap(imageToProcess.width()/3, ((7*rowOffsetDegree)+1), Bitmap.Config.ARGB_8888);
 		} else{
-			cannyResultImage = Bitmap.createBitmap((lastRedColumn-(imageToProcess.width()/3))-(firstRedColumn+(imageToProcess.width()/3)), ((7*row_offset_degree)+1), Bitmap.Config.ARGB_8888);
+			cannyResultImage = Bitmap.createBitmap((redAreaBoundary.getEast()-(imageToProcess.width()/3))-(redAreaBoundary.getWest()+(imageToProcess.width()/3)), 
+												   ((7*rowOffsetDegree)+1),
+												   Bitmap.Config.ARGB_8888);
 		}
 		
 		
-		for (int col = 0; col < ((lastRedColumn-(imageToProcess.width()/3)) - (firstRedColumn+(imageToProcess.width()/3))); col++, source_col++){
-			int source_row = lastObjectPixelRow+1-(7*row_offset_degree);
+		for (int col = 0; col < ((redAreaBoundary.getEast()-(imageToProcess.width()/3)) - (redAreaBoundary.getWest()+(imageToProcess.width()/3))); col++, sourceCol++){
+			int sourceRow = lastObjectPixelRow+1-(7*rowOffsetDegree);
 			
-			for (int row = 0; row < (7*row_offset_degree)+1; row++, source_row++){
-				int keyPixel = (int) cvGet2D(cannyImage, source_row, source_col).getVal(0);
+			for (int row = 0; row < (7*rowOffsetDegree)+1; row++, sourceRow++){
+				int keyPixel = (int) cvGet2D(cannyImage, sourceRow, sourceCol).getVal(0);
 				
 				if (keyPixel > 100){
 					cannyResultImage.setPixel(col, row, Color.argb(255, 255, 255, keyPixel));
@@ -241,11 +227,15 @@ public class VideoProcesser extends AsyncTask<Void, Void, Void>{
 //	}
 
 	private int redAreaCalculation(IplImage imageToProcess){
-		//Columns
-		int numOfRedPixelsInMostRedColumn = 0;
-		int sumOfColumnsWithMaxRedPixels = 0;
+		int sumOfColumnsWithMaxRedPixels = redColumnCalculation(imageToProcess);
 		
-		int redLimit = 145, greenLimit = 65, blueLimit = 50;
+		redRowCalculation(imageToProcess);
+		return sumOfColumnsWithMaxRedPixels;
+	}
+
+	public int redColumnCalculation(IplImage imageToProcess) {
+		int sumOfColumnsWithMaxRedPixels = 0;
+		int numOfRedPixelsInMostRedColumn = 0;
 		
 		for (int col = 0; col < imageToProcess.width(); col+=2){
 			int numOfRedPixels = 0;
@@ -256,19 +246,7 @@ public class VideoProcesser extends AsyncTask<Void, Void, Void>{
 				int green = (int) imageRGBExtraction.get(imageToProcess.widthStep()*row + col*3 + 1);
 				int red = (int) imageRGBExtraction.get(imageToProcess.widthStep()*row + col*3 + 2);
 				
-				if(blue < 0){
-					blue += 256;
-				}
-				if(green < 0){
-					green += 256;
-				}
-				if(red < 0){
-					red += 256;
-				}
-				
-		        if(red > redLimit && green < greenLimit && blue < blueLimit){
-		        	numOfRedPixels++;
-		        }
+				numOfRedPixels = colourThresholding(numOfRedPixels, blue, green, red);
 			}
 			
 			if (numOfRedPixels > numOfRedPixelsInMostRedColumn){
@@ -276,17 +254,20 @@ public class VideoProcesser extends AsyncTask<Void, Void, Void>{
 			}
 			
 			if (numOfRedPixels > 10){
-				if (firstRedColumn <= 0){
-					firstRedColumn = col;
+				if (redAreaBoundary.getWest() <= 0){
+					redAreaBoundary.setWest(col);
 				} else{
-					lastRedColumn = col;
+					redAreaBoundary.setEast(col);
 				}
 			}
 		}
 		sumOfColumnsWithMaxRedPixels += numOfRedPixelsInMostRedColumn;
+		return sumOfColumnsWithMaxRedPixels;
+	}
+	
+	public void redRowCalculation(IplImage imageToProcess) {
+		int numOfRedPixelsInMostRedRow = 0;
 		
-		//Rows
-		int numOfRedPixelsInMostRedRow = 1;
 		for (int row = 0; row < imageToProcess.height(); row+=3){
 			int numOfRedPixels = 0;
 			
@@ -296,19 +277,7 @@ public class VideoProcesser extends AsyncTask<Void, Void, Void>{
 				int green = (int) imageRGBExtraction.get(imageToProcess.widthStep()*row + col*3 + 1);
 				int red = (int) imageRGBExtraction.get(imageToProcess.widthStep()*row + col*3 + 2);
 				
-				if(blue < 0){
-					blue += 256;
-				}
-				if(green < 0){
-					green += 256;
-				}
-				if(red < 0){
-					red += 256;
-				}
-				
-				if(red > redLimit && green < greenLimit && blue < blueLimit){
-		        	numOfRedPixels++;
-				}
+				numOfRedPixels = colourThresholding(numOfRedPixels, blue, green, red);
 			}
 			
 			if (numOfRedPixels > numOfRedPixelsInMostRedRow){
@@ -316,49 +285,63 @@ public class VideoProcesser extends AsyncTask<Void, Void, Void>{
 			}
 			
 			if (numOfRedPixels > 15){ //Red area, by start and finish rows, for Canny boundaries
-				if (firstRedRow <= 0){
-					firstRedRow = row;
+				if (redAreaBoundary.getNorth() <= 0){
+					redAreaBoundary.setNorth(row);
 				} else{
-					lastRedRow = row;
+					redAreaBoundary.setSouth(row);
 				}
 			}
 		}
-		return sumOfColumnsWithMaxRedPixels;
 	}
-	
-	private void createWorkFolders(){
-		new File(ROOT_LOCATION + File.separator + String.valueOf(context.getText(R.string.rawImagesFolder))).mkdir();
-		new File(ROOT_LOCATION + File.separator + String.valueOf(context.getText(R.string.cannyImagesFolder))).mkdir();
-		new File(ROOT_LOCATION + File.separator + String.valueOf(context.getText(R.string.degreeImagesFolder))).mkdir();
+
+	public int colourThresholding(int numOfRedPixels, int blue, int green, int red) {
+		int redLimit = 145;
+		int greenLimit = 65;
+		int blueLimit = 50;
+		
+		if(blue < 0){
+			blue += 256;
+		}
+		if(green < 0){
+			green += 256;
+		}
+		if(red < 0){
+			red += 256;
+		}
+		
+		if(red > redLimit && green < greenLimit && blue < blueLimit){
+			numOfRedPixels++;
+		}
+		return numOfRedPixels;
 	}
 	
 	private Result matchKeyToDatabase(double length, double angle, long runTime, int passes){
 		double errorThreshold = 15;
 		double lengthThreshold = 2.5;
-		double min = 100;
+		double confidenceLevel = 100;
 		double lengthDelta;
 		double angleDelta;
-		double confidence;
+		double delta;
 		Key minKey = null;
 		
 		if(length < lengthThreshold){
-			return new Result(String.valueOf(context.getText(R.string.noModelFound)), length, angle, runTime, passes, 100-min);
+			return new Result(String.valueOf(context.getText(R.string.noModelFound)), length, angle, runTime, passes, 100-confidenceLevel);
 		}
 
 		for(Key key : KeyAnalyserActivity.databaseKeys){
 			lengthDelta = Math.abs(key.getLength()-length)*3;
 			angleDelta = Math.abs(key.getAngle()-angle)*0.75;
-			confidence = lengthDelta + angleDelta;
+			delta = lengthDelta + angleDelta;
 			
-			if(confidence < min){
-				min = confidence;
+			if(delta < confidenceLevel){
+				confidenceLevel = delta;
 				minKey = key;
 			}
 		}
 		
-		if(min <= errorThreshold){
-			return new Result(minKey.getModelName(), length, angle, runTime, passes, 100-min);
+		if(confidenceLevel <= errorThreshold){
+			return new Result(minKey.getModelName(), length, angle, runTime, passes, 100-confidenceLevel);
 		}
-		return new Result(String.valueOf(context.getText(R.string.noModelFound)), length, angle, runTime, passes, 100-min);
+		return new Result(String.valueOf(context.getText(R.string.noModelFound)), length, angle, runTime, passes, 100-confidenceLevel);
 	}
 }

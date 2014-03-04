@@ -14,17 +14,27 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Locale;
 
+import mehdis.Entities.Key;
+import mehdis.Entities.Result;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Notification;
+import android.app.NotificationManager;
+import android.app.PendingIntent;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.AssetFileDescriptor;
+import android.media.AudioManager;
 import android.media.MediaMetadataRetriever;
+import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.Vibrator;
 import android.provider.MediaStore;
+import android.support.v4.app.NotificationCompat;
 import android.text.InputType;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
@@ -41,23 +51,25 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public class KeyAnalyserActivity extends Activity{	
-	private static final String ROOT_LOCATION = Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser";
-	private static final File VIDEO_LOCATION = new File(ROOT_LOCATION + File.separator + "video.mp4");
+	public static final String ROOT_LOCATION = Environment.getExternalStorageDirectory() + File.separator + "KeyAnalyser";
+	public static final File VIDEO_LOCATION = new File(ROOT_LOCATION + File.separator + "video.mp4");
 	
 	private int numOfPasses = 1;
-	public static int instanceCounter = 0;
-	public static int logPointer = 0;
 	private static ArrayList<Result> analysisResults = new ArrayList<Result>();
 	private static TextView resultView;
 	private static TextView counterView;
 	private static ImageView keyView;
-	public static Result result;
+	private static Context thisContext;
 	
+	public static int instanceCounter = 0;
+	public static int logPointer = 0;
+	public static Result result;
 	public static ArrayList<Key> databaseKeys = new ArrayList<Key>();
 	
 	public void onCreate(Bundle savedInstanceState){
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.main);
+		thisContext = this;
 		
 		((Button) findViewById(R.id.VideoIntent)).setOnClickListener(mTakeVideo);
 		((Button) findViewById(R.id.VideoProcess)).setOnClickListener(mProcessVideo);
@@ -69,11 +81,17 @@ public class KeyAnalyserActivity extends Activity{
 		keyView.setOnTouchListener(new MyTouchListener());
 		resultView.setOnTouchListener(new MyTouchListener());
 		registerForContextMenu(keyView);
-		generateKeyDatabase();
+		
+		if(databaseKeys.isEmpty()){
+			generateKeyDatabase();
+		}
+		if(!analysisResults.isEmpty()){
+			showResult();
+		}
 	}
 	
-	private void processVideo(){
-		new VideoProcesser(getApplicationContext(), numOfPasses).execute();
+	public static void setResult(Result currentResult){
+		result = currentResult;
 	}
 	
 	private void TakeVideoIntent(){
@@ -85,14 +103,13 @@ public class KeyAnalyserActivity extends Activity{
 		}
 	}
 
-	public static void saveResult(/*Result result*/) {
+	public static void saveResult() {
 		analysisResults.add(result);
-		analysisResults.get(instanceCounter).setTextView(resultView, counterView, logPointer+1, analysisResults.size());
+		result.setTextView(resultView, counterView, logPointer+1, analysisResults.size());
 		logPointer = instanceCounter++;
 				
 		SetImageView.setImageViewFromLocalFile(keyView, result.getModelName());
 	}
-	
 	
 	private void deleteWorkFolders(boolean all){
 		if(all){
@@ -132,9 +149,39 @@ public class KeyAnalyserActivity extends Activity{
 	
 	private Button.OnClickListener mProcessVideo = new Button.OnClickListener(){	
 		public void onClick(final View view){
-			processVideo();			
+			new VideoProcesser(getApplicationContext(), numOfPasses).execute();
 		}
 	};
+	
+	public static void showNotification(){
+		Uri completionSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+		
+		Intent intent = new Intent(thisContext, KeyAnalyserActivity.class);
+		PendingIntent pendingIntent = PendingIntent.getActivity(thisContext, 0, intent, 0);
+		
+        Notification notification = new NotificationCompat.Builder(thisContext)
+			.setContentTitle("Analysis complete!")
+			.setContentText(result.getModelName())
+			.setSmallIcon(R.drawable.launcher)
+			.setContentIntent(pendingIntent)
+			.setAutoCancel(true)
+			.setSound(completionSound)
+			.addAction(R.drawable.launcher, "View", pendingIntent)
+			.addAction(0, "Remind", pendingIntent)
+			.build();
+			
+        NotificationManager notificationManager = (NotificationManager) thisContext.getSystemService(Context.NOTIFICATION_SERVICE);
+        notificationManager.notify(0, notification);
+        
+        if(isPhoneSilent()){
+			((Vibrator) thisContext.getSystemService(VIBRATOR_SERVICE)).vibrate(300);
+		}
+	}
+	
+	private static boolean isPhoneSilent() {
+		return ((AudioManager) thisContext.getSystemService(AUDIO_SERVICE)).getStreamVolume(AudioManager.STREAM_RING) == 0;
+	}
+	
 	
 	public boolean onCreateOptionsMenu(Menu menu){
 	    MenuInflater inflater = getMenuInflater();
@@ -283,16 +330,16 @@ public class KeyAnalyserActivity extends Activity{
 		new File(ROOT_LOCATION).mkdir();
 		try{
 		    AssetFileDescriptor videoAsset = getContentResolver().openAssetFileDescriptor(intent.getData(), "r");
-		    FileInputStream fis = videoAsset.createInputStream();
-		    FileOutputStream fos = new FileOutputStream(VIDEO_LOCATION);
+		    FileInputStream fileInput = videoAsset.createInputStream();
+		    FileOutputStream fileOutput = new FileOutputStream(VIDEO_LOCATION);
 
 		    byte[] buf = new byte[4096]; //Possible optimisation available here - need to test with recording video with smaller buf sizes
 		    int len;
-		    while ((len = fis.read(buf)) > 0){
-		    	fos.write(buf, 0, len);
+		    while ((len = fileInput.read(buf)) > 0){
+		    	fileOutput.write(buf, 0, len);
 		    }
-		    fis.close();
-		    fos.close();
+		    fileInput.close();
+		    fileOutput.close();
 		} catch (IOException e){
 			 e.printStackTrace();
 		}

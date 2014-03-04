@@ -1,4 +1,4 @@
-package mehdis.KeyAnalyser;
+package mehdis.Entities;
 
 import java.util.Locale;
 
