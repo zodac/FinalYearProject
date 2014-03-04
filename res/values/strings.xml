@@ -12,8 +12,16 @@
     <string name="left">&lt;</string>
     <string name="right">&gt;</string>
     <string name="imageDesc">Key Model Number</string>
+    <string name="rawImagesFolder">1_raw_images</string>
+    <string name="cannyImagesFolder">2_canny_images</string>
+    <string name="degreeImagesFolder">3_degree_images</string>
     <string name="silcaSite">https://ekc.silca.biz/ricerche_stampa_chiave.php?chiave=</string>
     <string name="sdCardNotMounted">"SD card not mounted!"</string>
     <string name="noVideoFile">No video file to analyse!</string>
     <string name="openCatalogue">Open Catalogue (requires login)</string>
+    <string name="tempFilesDeleted">All temp files deleted!</string>
+    <string name="imagesDeleted">All images deleted!</string>
+    <string name="noFilesToDelete">No files to delete!</string>
+    <string name="nothingToClear">Nothing to clear</string>
+    <string name="noModelFound">No model found</string> <!-- Remember to update Key.java and Result.java if this string is changed -->
 </resources>

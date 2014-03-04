@@ -39,18 +39,26 @@ public final class R {
     }
     public static final class string {
         public static final int appName=0x7f040000;
+        public static final int cannyImagesFolder=0x7f04000d;
         public static final int clear=0x7f040007;
+        public static final int degreeImagesFolder=0x7f04000e;
         public static final int imageDesc=0x7f04000b;
+        public static final int imagesDeleted=0x7f040014;
         public static final int left=0x7f040009;
         public static final int log=0x7f040006;
-        public static final int noVideoFile=0x7f04000e;
-        public static final int openCatalogue=0x7f04000f;
+        public static final int noFilesToDelete=0x7f040015;
+        public static final int noModelFound=0x7f040017;
+        public static final int noVideoFile=0x7f040011;
+        public static final int nothingToClear=0x7f040016;
+        public static final int openCatalogue=0x7f040012;
         public static final int quit=0x7f040008;
+        public static final int rawImagesFolder=0x7f04000c;
         public static final int right=0x7f04000a;
-        public static final int sdCardNotMounted=0x7f04000d;
+        public static final int sdCardNotMounted=0x7f040010;
         public static final int settings=0x7f040003;
-        public static final int silcaSite=0x7f04000c;
+        public static final int silcaSite=0x7f04000f;
         public static final int tempFiles=0x7f040004;
+        public static final int tempFilesDeleted=0x7f040013;
         public static final int tempImages=0x7f040005;
         public static final int videoIntent=0x7f040001;
         public static final int videoProcess=0x7f040002;
