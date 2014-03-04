@@ -19,9 +19,13 @@ import java.util.Locale;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
+import android.media.AudioManager;
 import android.media.MediaMetadataRetriever;
+import android.media.MediaPlayer;
+import android.media.RingtoneManager;
 import android.os.AsyncTask;
 import android.os.Environment;
+import android.os.Vibrator;
 import android.widget.Toast;
 
 import com.googlecode.javacpp.BytePointer;
@@ -49,8 +53,33 @@ public class VideoProcesser extends AsyncTask<Void, Void, Void>{
 	
 	@Override
 	protected Void doInBackground(Void... params) {
-		// TODO Auto-generated method stub
+		Result result = processVideo();
+		KeyAnalyserActivity.result = result;
 		return null;
+	}
+	protected void onPostExecute(Void result) {
+		KeyAnalyserActivity.saveResult();
+		endingTone();
+	}
+	
+	private void endingTone() {
+		if(isPhoneSilent()){
+			((Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE)).vibrate(300);
+		} else{
+			try {
+				MediaPlayer completedNotification = new MediaPlayer();
+				completedNotification.setDataSource(context.getApplicationContext(), RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
+				completedNotification.setAudioStreamType(AudioManager.STREAM_RING);
+				completedNotification.prepare();
+				completedNotification.start();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+	
+	private boolean isPhoneSilent() {
+		return ((AudioManager) context.getSystemService(Context.AUDIO_SERVICE)).getStreamVolume(AudioManager.STREAM_RING) == 0;
 	}
 	
 	private void statusToast(String statusMessage){

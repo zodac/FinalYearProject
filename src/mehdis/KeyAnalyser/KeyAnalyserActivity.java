@@ -16,19 +16,14 @@ import java.util.Locale;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.res.AssetFileDescriptor;
-import android.media.AudioManager;
 import android.media.MediaMetadataRetriever;
-import android.media.MediaPlayer;
-import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
-import android.os.Vibrator;
 import android.provider.MediaStore;
 import android.text.InputType;
 import android.view.ContextMenu;
@@ -50,15 +45,13 @@ public class KeyAnalyserActivity extends Activity{
 	private static final File VIDEO_LOCATION = new File(ROOT_LOCATION + File.separator + "video.mp4");
 	
 	private int numOfPasses = 1;
-	public int instanceCounter = 0;
-	public int logPointer = 0;
-	private float prevX = -1;
-	private boolean onTouchBlocked = false;
-	private Handler onTouchHandler = new Handler();
+	public static int instanceCounter = 0;
+	public static int logPointer = 0;
 	private static ArrayList<Result> analysisResults = new ArrayList<Result>();
-	private TextView resultView;
-	private TextView counterView;
-	private ImageView keyView;
+	private static TextView resultView;
+	private static TextView counterView;
+	private static ImageView keyView;
+	public static Result result;
 	
 	public static ArrayList<Key> databaseKeys = new ArrayList<Key>();
 	
@@ -80,10 +73,7 @@ public class KeyAnalyserActivity extends Activity{
 	}
 	
 	private void processVideo(){
-		VideoProcesser vP = new VideoProcesser(getApplicationContext(), numOfPasses);
-		Result analysisResult = vP.processVideo();
-		saveResult(analysisResult);
-		endingTone();
+		new VideoProcesser(getApplicationContext(), numOfPasses).execute();
 	}
 	
 	private void TakeVideoIntent(){
@@ -95,12 +85,12 @@ public class KeyAnalyserActivity extends Activity{
 		}
 	}
 
-	private void saveResult(Result analysisResult) {
-		analysisResults.add(analysisResult);
+	public static void saveResult(/*Result result*/) {
+		analysisResults.add(result);
 		analysisResults.get(instanceCounter).setTextView(resultView, counterView, logPointer+1, analysisResults.size());
 		logPointer = instanceCounter++;
 				
-		SetImageView.setImageViewFromLocalFile(keyView, analysisResult.getModelName());
+		SetImageView.setImageViewFromLocalFile(keyView, result.getModelName());
 	}
 	
 	
@@ -123,35 +113,11 @@ public class KeyAnalyserActivity extends Activity{
 	    fileOrDirectory.delete();
 	}
 
-	
-
 	private void generateKeyDatabase(){
 		databaseKeys.add(new Key("MS2", 	4.2, 	90));
 		databaseKeys.add(new Key("UL050", 	5.5, 	87.5));
 		databaseKeys.add(new Key("UNI3", 	5.75, 	97.5));
 		databaseKeys.add(new Key("UL054", 	6, 		92.5));
-	}
-	
-	
-	
-	private void endingTone() {
-		if(isPhoneSilent()){
-			((Vibrator) getSystemService(Context.VIBRATOR_SERVICE)).vibrate(300);
-		} else{
-			try {
-				MediaPlayer completedNotification = new MediaPlayer();
-				completedNotification.setDataSource(getApplicationContext(), RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION));
-				completedNotification.setAudioStreamType(AudioManager.STREAM_RING);
-				completedNotification.prepare();
-				completedNotification.start();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
-	}
-
-	private boolean isPhoneSilent() {
-		return ((AudioManager) getSystemService(AUDIO_SERVICE)).getStreamVolume(AudioManager.STREAM_RING) == 0;
 	}
 	
 	private void statusToast(String statusMessage){
@@ -360,6 +326,10 @@ public class KeyAnalyserActivity extends Activity{
 	}
 	
 	private class MyTouchListener implements OnTouchListener{
+		private float prevX = -1;
+		private boolean onTouchBlocked = false;
+		private Handler onTouchHandler = new Handler();
+		
 		@Override
 		public boolean onTouch(View v, MotionEvent event) {
 			final float currentX = event.getX();
