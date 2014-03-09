@@ -13,7 +13,7 @@ public class Settings {
 		this.logPointer = 0;
 	}
 	
-	public static Settings getDefaultSettings(){
+	public static Settings getSettings(){
 		if(instance == null){
 			instance = new Settings();
 		}

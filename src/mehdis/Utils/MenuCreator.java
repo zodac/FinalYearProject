@@ -1,21 +1,16 @@
 package mehdis.Utils;
 
-import java.io.File;
-
+import mehdis.Entities.Settings;
 import mehdis.KeyAnalyser.KeyAnalyserActivity;
 import mehdis.KeyAnalyser.R;
 import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
-import android.media.MediaMetadataRetriever;
-import android.os.Environment;
 import android.view.MenuItem;
 import android.widget.NumberPicker;
-import android.widget.Toast;
 
 public class MenuCreator {
-	private static final String ROOT_LOCATION = KeyAnalyserActivity.ROOT_LOCATION;
-	private static final File VIDEO_LOCATION = KeyAnalyserActivity.VIDEO_LOCATION;
+	private static Settings settings = Settings.getSettings();
 	private static Context thisContext;
 	
 	public static boolean generateMenu(KeyAnalyserActivity activity, Context context, MenuItem item){
@@ -30,10 +25,10 @@ public class MenuCreator {
 	        	return clearMenu();
 	            
 	        case R.id.temp_files:
-	        	return tempFilesMenu();
+	        	return FileUtilities.tempFilesMenu(thisContext);
 	            
 	        case R.id.temp_images:
-	        	return tempImagesMenu();
+	        	return FileUtilities.tempImagesMenu(thisContext);
 	        
 	        case R.id.quit:
 	        	return false;
@@ -42,44 +37,24 @@ public class MenuCreator {
 	        	return true;
 	    }
 	}
-	
-	private static boolean tempImagesMenu() {
-		if (new File(ROOT_LOCATION).exists()){
-			deleteWorkFolders(false);
-			statusToast(String.valueOf(thisContext.getText(R.string.imagesDeleted)));
-		} else{
-			statusToast(String.valueOf(thisContext.getText(R.string.noFilesToDelete)));
-		}
-		return true;
-	}
-
-	private static boolean tempFilesMenu() {
-		if (new File(ROOT_LOCATION).exists()){
-			deleteWorkFolders(true);
-			statusToast(String.valueOf(thisContext.getText(R.string.tempFilesDeleted)));
-		} else{
-			statusToast(String.valueOf(thisContext.getText(R.string.noFilesToDelete)));
-		}
-		return true;
-	}
 
 	private static boolean clearMenu() {
-		int instanceCounter = KeyAnalyserActivity.settings.getInstanceCounter();
+		int instanceCounter = settings.getInstanceCounter();
 		
 		if(instanceCounter == 0){
-			statusToast(String.valueOf(thisContext.getText(R.string.nothingToClear)));
+			DisplayUtilities.statusToast(thisContext, String.valueOf(thisContext.getText(R.string.nothingToClear)));
 		} else{
 			KeyAnalyserActivity.resultView.setText("");
 			KeyAnalyserActivity.counterView.setText("");
 			KeyAnalyserActivity.keyView.setImageDrawable(null);
 			
-			KeyAnalyserActivity.settings.setLogPointer(instanceCounter);
+			settings.setLogPointer(instanceCounter);
 		}
 		return true;
 	}
 
 	private static boolean settingsMenu(AlertDialog.Builder alert) {
-		int numOfPasses = KeyAnalyserActivity.settings.getNumOfPasses();
+		int numOfPasses = settings.getNumOfPasses();
 		
 		if (numOfPasses == 1){
 			alert.setTitle("Current setting: 1 frame");
@@ -87,19 +62,10 @@ public class MenuCreator {
 			alert.setTitle("Current setting: " + numOfPasses + " frames");
 		}
 		
-		if(!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){
-			statusToast(String.valueOf(thisContext.getText(R.string.sdCardNotMounted)));
-		} else if(!VIDEO_LOCATION.exists()){
-			statusToast(String.valueOf(thisContext.getText(R.string.noVideoFile)));
-		} else{
-			MediaMetadataRetriever vidFile = new MediaMetadataRetriever();
-			vidFile.setDataSource(VIDEO_LOCATION.getAbsolutePath());
-			//Length of video file in seconds x10
-			final int maxFramesAvailable = (int) ((Long.parseLong(vidFile.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION))*10)/1000);
-			
+		if(FileUtilities.videoIsAvailable(thisContext)){
 			final NumberPicker frameCountChooser = new NumberPicker(thisContext);
 			frameCountChooser.setMinValue(1);
-			frameCountChooser.setMaxValue(maxFramesAvailable);
+			frameCountChooser.setMaxValue(FileUtilities.getVideoFramesAvailable());
 			frameCountChooser.setValue(numOfPasses);
 			frameCountChooser.setWrapSelectorWheel(true);
 			frameCountChooser.setDescendantFocusability(NumberPicker.FOCUS_BLOCK_DESCENDANTS);
@@ -109,11 +75,12 @@ public class MenuCreator {
 		    	public void onClick(DialogInterface dialog, int whichButton){
 		    		int inputNumberOfFrames = frameCountChooser.getValue();
 		    		
-		    		KeyAnalyserActivity.settings.setNumOfPasses(inputNumberOfFrames);
+		    		settings.setNumOfPasses(inputNumberOfFrames);
 					if(inputNumberOfFrames == 1){
-						statusToast(String.valueOf(thisContext.getText(R.string.singleFrame)));
+
+						DisplayUtilities.statusToast(thisContext, String.valueOf(thisContext.getText(R.string.singleFrame)));
 					} else{
-						statusToast("Set to " + inputNumberOfFrames + " frames");
+						DisplayUtilities.statusToast(thisContext, "Set to " + inputNumberOfFrames + " frames");
 					}
 		    	}
 		    });
@@ -122,28 +89,5 @@ public class MenuCreator {
 			alert.show();
 		}
 		return true;
-	}
-	
-	private static void statusToast(String statusMessage){
-		Toast.makeText(thisContext, statusMessage, Toast.LENGTH_SHORT).show();
-	}
-	
-	private static void deleteWorkFolders(boolean all){
-		if(all){
-			deleteDirectory(ROOT_LOCATION);
-		} else{
-			deleteDirectory(ROOT_LOCATION + File.separator + String.valueOf(thisContext.getText(R.string.rawImagesFolder)));
-    		deleteDirectory(ROOT_LOCATION + File.separator + String.valueOf(thisContext.getText(R.string.cannyImagesFolder)));
-    		deleteDirectory(ROOT_LOCATION + File.separator + String.valueOf(thisContext.getText(R.string.degreeImagesFolder)));
-		}
-	}
-	
-	private static void deleteDirectory(String inputDirectory){
-		File fileOrDirectory = new File(inputDirectory);
-		if (fileOrDirectory.isDirectory()){
-	        for (File child : fileOrDirectory.listFiles())
-	            deleteDirectory(child.toString());
-		}
-	    fileOrDirectory.delete();
 	}
 }
