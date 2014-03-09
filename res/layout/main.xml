@@ -25,20 +25,10 @@
         android:text="@string/videoProcess"
     />
 
-    <TextView
-        android:id="@+id/TextView"
-        android:layout_width="wrap_content"
-        android:layout_height="150dp"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentRight="true"
-        android:layout_below="@+id/VideoProcess"
-        android:textIsSelectable="true"
-        android:textSize="15sp" />
-
     <ImageView
         android:id="@+id/ImageView"
         android:layout_width="wrap_content"
-        android:layout_height="270dp"
+        android:layout_height="255dp"
         android:layout_alignParentLeft="true"
         android:layout_alignParentRight="true"
         android:layout_below="@+id/TextView"
@@ -53,5 +43,24 @@
         android:layout_alignParentRight="true"
         android:layout_below="@+id/ImageView"
         android:textSize="17sp" />
+
+    <ProgressBar
+        android:id="@+id/ProgressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:layout_below="@+id/VideoProcess" />
+
+    <TextView
+        android:id="@+id/TextView"
+        android:layout_width="wrap_content"
+        android:layout_height="150dp"
+        android:layout_alignParentLeft="true"
+        android:layout_alignParentRight="true"
+        android:layout_below="@+id/ProgressBar"
+        android:textIsSelectable="true"
+        android:textSize="15sp" />
 
 </RelativeLayout>

@@ -16,6 +16,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Locale;
 
+import mehdis.Entities.AnalysisData;
 import mehdis.Entities.Boundary;
 import mehdis.Entities.Key;
 import mehdis.Entities.Result;
@@ -77,7 +78,7 @@ public class VideoProcesser extends AsyncTask<Void, Void, Void>{
 	}
 	
 	public Result processVideo(){
-		long startTime = System.currentTimeMillis();	
+		long startTime = System.currentTimeMillis();
 		Result analysisResult = null;
 		
 		if(!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)){
@@ -85,20 +86,17 @@ public class VideoProcesser extends AsyncTask<Void, Void, Void>{
 		} else if(!VIDEO_LOCATION.exists()){
 			statusToast(String.valueOf(context.getText(R.string.noVideoFile)));
 		} else{
-			createWorkFolders();
-			
 			MediaMetadataRetriever videoFile = new MediaMetadataRetriever();
 			videoFile.setDataSource(VIDEO_LOCATION.getAbsolutePath());
 			Bitmap extractedFrame = videoFile.getFrameAtTime(0, MediaMetadataRetriever.OPTION_CLOSEST);
 			
-			int i = 0;
-			int imageCount = 0;
-			double length = 0;
-			double degreeAverage = 0;
+			int frameCounter = 0;
+			int imageCounter = 0;
+			AnalysisData analysisData = new AnalysisData(0, 0);
 			
-			while(extractedFrame != null && i < numOfPasses){
-				writeImageToFile(extractedFrame, String.valueOf(context.getText(R.string.rawImagesFolder)), ++imageCount);
-				IplImage imageToProcess = cvLoadImage(ROOT_LOCATION + File.separator + String.valueOf(context.getText(R.string.rawImagesFolder)) + File.separator + String.format(Locale.ENGLISH, "%03d", imageCount) + ".png");	
+			while(extractedFrame != null && frameCounter < numOfPasses){
+				writeImageToFile(extractedFrame, String.valueOf(context.getText(R.string.rawImagesFolder)), ++imageCounter);
+				IplImage imageToProcess = cvLoadImage(ROOT_LOCATION + File.separator + String.valueOf(context.getText(R.string.rawImagesFolder)) + File.separator + String.format(Locale.ENGLISH, "%03d", imageCounter) + ".png");	
 				
 				/**
 				 * Determine red area for pixel/cm ratio & red area boundary (for cvCanny)
@@ -137,38 +135,32 @@ public class VideoProcesser extends AsyncTask<Void, Void, Void>{
 			            }
 			        }
 		        }
-				writeImageToFile(cannyResultImage, String.valueOf(context.getText(R.string.cannyImagesFolder)), imageCount);
+				writeImageToFile(cannyResultImage, String.valueOf(context.getText(R.string.cannyImagesFolder)), imageCounter);
 				
-				length = (objectPixels.getSouth()-objectPixels.getNorth())*(17.5/sizeOfMaxRedColumn);
+				analysisData.setLength((objectPixels.getSouth()-objectPixels.getNorth())*(17.5/sizeOfMaxRedColumn));
 				
 				/**
 				 * Create images for degree calculation - trying to isolate the tip of the key and some of the rows above it
 				 */
 				//Define area to isolate and save to file
-				isolateKeyTip(imageCount, imageToProcess, cannyImage, objectPixels.getSouth());
+				isolateKeyTip(imageCounter, imageToProcess, cannyImage, objectPixels.getSouth());
 				
 				//Load image for degree calculation
-				imageToProcess = cvLoadImage(ROOT_LOCATION + File.separator + String.valueOf(context.getText(R.string.cannyImagesFolder)) + File.separator + String.format(Locale.ENGLISH, "%03d", imageCount) + ".png");
+				imageToProcess = cvLoadImage(ROOT_LOCATION + File.separator + String.valueOf(context.getText(R.string.cannyImagesFolder)) + File.separator + String.format(Locale.ENGLISH, "%03d", imageCounter) + ".png");
 				cannyImage = IplImage.create(imageToProcess.width(), imageToProcess.height(), IPL_DEPTH_8U, 1);
 				cvCvtColor(imageToProcess, cannyImage, CV_BGR2GRAY);
 			
 				//Calculate angle of tip
-				degreeAverage = angleCalculation(cannyImage);
+				analysisData.setAngle(angleCalculation(cannyImage));
 				
-				extractedFrame = videoFile.getFrameAtTime(100000*++i, MediaMetadataRetriever.OPTION_CLOSEST);
+				extractedFrame = videoFile.getFrameAtTime(100000*++frameCounter, MediaMetadataRetriever.OPTION_CLOSEST);
 			}
 			videoFile.release();
 
-			analysisResult = matchKeyToDatabase(length, degreeAverage, (System.currentTimeMillis()-startTime)/1000, imageCount);
+			analysisResult = matchKeyToDatabase(analysisData.getLength(), analysisData.getAngle(), (System.currentTimeMillis()-startTime)/1000, imageCounter);
 		}
 		return analysisResult;
 		/** End **/
-	}
-	
-	private void createWorkFolders(){
-		new File(ROOT_LOCATION + File.separator + String.valueOf(context.getText(R.string.rawImagesFolder))).mkdir();
-		new File(ROOT_LOCATION + File.separator + String.valueOf(context.getText(R.string.cannyImagesFolder))).mkdir();
-		new File(ROOT_LOCATION + File.separator + String.valueOf(context.getText(R.string.degreeImagesFolder))).mkdir();
 	}
 
 	private void isolateKeyTip(int imageCount, IplImage imageToProcess, IplImage cannyImage, int lastObjectPixelRow) {

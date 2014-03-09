@@ -9,8 +9,6 @@
     <string name="log">Last result</string>
     <string name="clear">Clear screen</string>
     <string name="quit">Close KeyAnalyser</string>
-    <string name="left">&lt;</string>
-    <string name="right">&gt;</string>
     <string name="imageDesc">Key Model Number</string>
     <string name="rawImagesFolder">1_raw_images</string>
     <string name="cannyImagesFolder">2_canny_images</string>
@@ -23,5 +21,9 @@
     <string name="imagesDeleted">All images deleted!</string>
     <string name="noFilesToDelete">No files to delete!</string>
     <string name="nothingToClear">Nothing to clear</string>
-    <string name="noModelFound">No model found</string> <!-- Remember to update Key.java and Result.java if this string is changed -->
+    <string name="noModelFound">No model found</string> <!-- Remember to update Key.java, Result.java and SetImageView.java if this string is changed -->
+    <string name="noValueEntered">No value entered!</string>
+    <string name="numberNotEntered">Number not entered!</string>
+    <string name="negativeFrames">Can\'t analyse negative frames!</string>
+    <string name="singleFrame">Set to 1 frame</string>
 </resources>
