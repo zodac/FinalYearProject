@@ -28,6 +28,7 @@ import android.content.res.AssetFileDescriptor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.provider.MediaStore;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
@@ -36,6 +37,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 
 public class KeyAnalyserActivity extends Activity{	
@@ -46,8 +48,10 @@ public class KeyAnalyserActivity extends Activity{
 	public static TextView resultView;
 	public static TextView counterView;
 	public static ImageView keyView;
+	public ProgressBar progressBar;
 	public static Result result;
 	public static ArrayList<Key> databaseKeys = new ArrayList<Key>();
+	private Handler mHandler = new Handler();
 	
 	public void onCreate(Bundle savedInstanceState){
 		super.onCreate(savedInstanceState);
@@ -56,6 +60,7 @@ public class KeyAnalyserActivity extends Activity{
 		
 		((Button) findViewById(R.id.VideoIntent)).setOnClickListener(recordVideo);
 		((Button) findViewById(R.id.VideoProcess)).setOnClickListener(processVideo);
+		progressBar = (ProgressBar) findViewById(R.id.ProgressBar);
 		
 		resultView = (TextView) findViewById(R.id.TextView);
 		counterView = (TextView) findViewById(R.id.CounterView);
@@ -107,7 +112,9 @@ public class KeyAnalyserActivity extends Activity{
 	
 	private Button.OnClickListener processVideo = new Button.OnClickListener(){	
 		public void onClick(final View view){
-			new VideoProcesser(getApplicationContext(), settings.getNumOfPasses()).execute();
+			if(FileUtilities.videoIsAvailable(thisContext)){
+				new VideoProcesser(getApplicationContext(), settings.getNumOfPasses(), progressBar, mHandler).execute();
+			}
 		}
 	};	
 	
@@ -145,7 +152,10 @@ public class KeyAnalyserActivity extends Activity{
 	}
 	
 	public boolean onOptionsItemSelected(MenuItem item){
-		return MenuCreator.generateMenu(this, getApplicationContext(), item);
+		if(!MenuCreator.generateMenu(this, getApplicationContext(), item)){
+			finish();
+		}
+		return true;
 	}
 
 	//Handles intent data and saves to default DCIM folder (file name handles by device)
@@ -154,6 +164,12 @@ public class KeyAnalyserActivity extends Activity{
 			handleCameraVideo(intent);
 		}
 	}
+	
+	//Kills process and (hopefully) its Asynctasks
+	public void onDestroy() {
+        super.onDestroy();
+        android.os.Process.killProcess(android.os.Process.myPid());
+    }   
 	
 	//Hijack intent data-stream, and save video file to defined location
 	private void handleCameraVideo(Intent intent){
@@ -201,10 +217,11 @@ public class KeyAnalyserActivity extends Activity{
 	
 	private static void showResult() {
 		int logPointer = settings.getLogPointer();
-		
-		results.get(logPointer).setTextView(resultView, counterView, settings.getLogPointer()+1, results.size());
-		String keyModel = results.get(logPointer).getModelName();
-		
-		SetImageView.setImageViewFromLocalFile(thisContext.getResources(), keyView, keyModel);
+		if(logPointer >= 0 && logPointer < results.size()){
+			results.get(logPointer).setTextView(resultView, counterView, settings.getLogPointer()+1, results.size());
+			String keyModel = results.get(logPointer).getModelName();
+			
+			SetImageView.setImageViewFromLocalFile(thisContext.getResources(), keyView, keyModel);
+		}
 	}
 }
