@@ -11,16 +11,12 @@ import static com.googlecode.javacv.cpp.opencv_imgproc.cvCvtColor;
 import static com.googlecode.javacv.cpp.opencv_imgproc.cvHoughLines2;
 
 import java.io.File;
-import java.util.Locale;
 
 import mehdis.Entities.Boundary;
+import mehdis.Entities.Settings;
 import mehdis.Utils.FileUtilities;
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Color;
-import android.os.Handler;
-import android.util.Log;
-import android.widget.ProgressBar;
 
 import com.google.common.util.concurrent.AtomicDoubleArray;
 import com.googlecode.javacpp.BytePointer;
@@ -30,33 +26,25 @@ import com.googlecode.javacv.cpp.opencv_core.CvSeq;
 import com.googlecode.javacv.cpp.opencv_core.IplImage;
 
 
-public class ImageProcesser extends Thread {
+public class ImageProcessor extends Thread {
 	private int id;
 	private Boundary redAreaBoundary = new Boundary();
 	private IplImage imageToProcess;
 	private AtomicDoubleArray lengths;
 	private AtomicDoubleArray angles;
-	private Context context;
-	private Handler mHandler;
-	private ProgressBar progressBar;
 	private int progressPercentage;
 	
-	public ImageProcesser(int id, IplImage imageToProcess, AtomicDoubleArray lengths, AtomicDoubleArray angles, Context context, ProgressBar progressBar, Handler mHandler){
+	public ImageProcessor(int id, IplImage imageToProcess, AtomicDoubleArray lengths, AtomicDoubleArray angles){
 		this.id = id;
 		this.imageToProcess = imageToProcess;
 		this.lengths = lengths;
 		this.angles = angles;
-		this.context = context;
-		this.progressBar = progressBar;
-		this.progressPercentage = (int) ((100000/lengths.length()));
-		this.mHandler = mHandler;
+		this.progressPercentage = (int) ((100000/lengths.length())/4);
 	}
 	
 	public void run(){
-		Log.d("MKA", "Started thread (" + (id+1) + "), with increment of: " + progressPercentage);
-		
 		int sizeOfMaxRedColumn = redAreaCalculation(imageToProcess);
-		Log.i("MKA", "Red calculated (" + (id+1) + ")");
+		updateProgressBar(progressPercentage/2);
 		/**
 		 * Moving on to cvCanny analysis: isolating image within red area
 		 */
@@ -67,7 +55,7 @@ public class ImageProcesser extends Thread {
 		cvCanny(imageToProcess, cannyImage, 65, 175, 3);
       
 		Bitmap cannyResultImage = Bitmap.createBitmap(imageToProcess.width(), imageToProcess.height(), Bitmap.Config.ARGB_8888);
-		Log.i("MKA", "Canny saved (" + (id+1) + ")");
+		updateProgressBar(progressPercentage/2);
 		//If within these boundaries, apply cvCanny, otherwise leave empty (for .png, this results in transparent space around the image)
 		for(int row = redAreaBoundary.getNorth()+(4*rowOffset); row < redAreaBoundary.getSouth()-(4*rowOffset); row++){
 			int colOffset = imageToProcess.width()/110;
@@ -88,37 +76,28 @@ public class ImageProcesser extends Thread {
 		        }
 		    }
 		}
-		FileUtilities.writeImageToFile(cannyResultImage, String.valueOf(context.getText(R.string.cannyImagesFolder)), this.id+1);
+		FileUtilities.writeImageToFile(cannyResultImage, String.valueOf(KeyAnalyserActivity.thisContext.getText(R.string.cannyImagesFolder)), this.id+1);
 		
 		double ratio = (17.5/sizeOfMaxRedColumn);
 		lengths.set(this.id, (objectPixels.getSouth()-objectPixels.getNorth())*ratio);
-		Log.w("MKA", "Canny length complete (" + (id+1) + ")");
+		updateProgressBar(progressPercentage*2);
 		/**
 		 * Create images for degree calculation - trying to isolate the tip of the key and some of the rows above it
 		 */
 		isolateKeyTip((int) this.id+1, imageToProcess, cannyImage, objectPixels.getSouth());
 		
 		//Load image for degree calculation
-		imageToProcess = cvLoadImage(FileUtilities.ROOT_LOCATION + File.separator + String.valueOf(context.getText(R.string.cannyImagesFolder)) + File.separator + String.format(Locale.ENGLISH, "%03d.png", this.id+1));
+		imageToProcess = cvLoadImage(FileUtilities.ROOT_LOCATION + File.separator + String.valueOf(KeyAnalyserActivity.thisContext.getText(R.string.cannyImagesFolder)) + File.separator + String.format(Settings.getSettings().getLocale(), "%03d.png", this.id+1));
 		cannyImage = IplImage.create(imageToProcess.width(), imageToProcess.height(), IPL_DEPTH_8U, 1);
 		cvCvtColor(imageToProcess, cannyImage, CV_BGR2GRAY);
 
 		//Calculate angle of tip
 		angles.set(this.id, calculateTipAngle(cannyImage));
-		
-		Log.e("MKA", "Frame Number: " + ((this.id)+1)
-				   + "\nFirst Object Row: " + objectPixels.getNorth()
-				   + "\nLast Object Row: " + objectPixels.getSouth()
-				   + "\nRow Delta: " + (objectPixels.getSouth()-objectPixels.getNorth())
-				   + "\nLength: " + String.format("%.3f", lengths.get(this.id))
-				   + "\n "
-		);
-		
-		mHandler.post(new Runnable(){
-			public void run(){
-				progressBar.setProgress(progressBar.getProgress()+progressPercentage);
-			}
-		});
+		updateProgressBar(progressPercentage);
+	}
+
+	private void updateProgressBar(int progressPercentage) {
+		KeyAnalyserActivity.updateProgressBar(progressPercentage);
 	}
 	
 	private void isolateKeyTip(int imageCount, IplImage imageToProcess, IplImage cannyImage, int lastObjectPixelRow) {
@@ -148,7 +127,7 @@ public class ImageProcesser extends Thread {
 				}
 			}
 		}
-		FileUtilities.writeImageToFile(cannyResultImage, String.valueOf(context.getText(R.string.degreeImagesFolder)), imageCount);
+		FileUtilities.writeImageToFile(cannyResultImage, String.valueOf(KeyAnalyserActivity.thisContext.getText(R.string.degreeImagesFolder)), imageCount);
 	}
 
 	private double calculateTipAngle(IplImage cannyImage) {

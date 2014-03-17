@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Basic info -->
+    <string name="appName">KeyAnalyser</string>
+    <string name="ok">Bueno</string>
+    <string name="cancel">Cancelar</string>
+    <string name="info">Información para</string>
+    <string name="model">Modelo</string>
+    <string name="length">Largo</string>
+    <string name="tipAngle">Ángulo de Punta</string>
+    <string name="processTime">Tiempo de proceso</string>
+    <string name="passes">Pasadas</string>
+    <string name="seconds">segundos</string>
+    <string name="of">de</string>
+    <string name="noModelFound">Ningún modelo encontrado</string>
+    
+    <!-- Selection options -->
+    <string name="videoIntent">Grabar Video</string>
+    <string name="videoProcess">Procesar Video</string>
+    <string name="settings">Configuración</string>
+    <string name="tempFiles">Borrar todos los archivos</string>
+    <string name="tempImages">Borrar todas las imágenes</string>
+    <string name="clearScreen">Despejar Pantalla</string>
+    <string name="clearResults">Despejar Resultados</string>
+    <string name="quit">Cerrar KeyAnalyser</string>
+    <string name="save">Guardar los resultados</string>
+    <string name="load">Cargar los resultados</string>
+    <string name="setLanguage">Cambiar idioma</string>
+    <string name="languageChanged">Idioma cambió</string>
+    <string name="imageDesc">Modelo</string>
+    
+    <!-- Folder names -->
+    <string name="rawImagesFolder">1_raw_images</string>
+    <string name="cannyImagesFolder">2_canny_images</string>
+    <string name="degreeImagesFolder">3_degree_images</string>
+    
+    <!-- Web access -->
+    <string name="silcaSite">https://ekc.silca.biz/ricerche_stampa_chiave.php?chiave=</string>
+    <string name="openLink">Abierto enlace (cuenta necesario)</string>
+    
+    <!-- Initial load errors -->
+    <string name="sdCardNotMounted">¡Targeta SD sin montado!</string>
+    <string name="noVideoFile">¡No hay un video!</string>
+    
+    <!-- Settings confirmation -->
+    <string name="tempFilesDeleted">¡Todos los archivos borrados!</string>
+    <string name="imagesDeleted">¡Todos las imágenes borrados!</string>
+	<string name="resultsSaved">Resultados guarda como</string>
+	<string name="resultsLoaded">Resultados cargados</string>
+    <string name="analysisComplete">Análisis #%d completo</string>
+    <string name="singleFrameCurrent">Configuración presente: 1 cuadro</string>
+    <string name="multipleFramesCurrent">Configuración presente: %s cuadros</string>
+    <string name="singleFrameConfirm">Ajustado a 1 cuadro</string>
+    <string name="multipleFramesConfirm">Ajustado a %s cuadros</string>
+        
+    <!-- Errors -->
+    <string name="noFilesToDelete">¡No hay archivos a eliminar!</string>
+    <string name="nothingToClear">¡Nada para despejar!</string>
+    <string name="invalidResultsFile">¡Archivo no válido!</string>
+    <string name="noResults">¡No hay resultados a guardar!</string>
+    
+     <!-- Language options -->
+    <string name="english">Inglés</string>
+    <string name="spanish">Español</string>
+    <string name="french">Francés</string>
+    <string name="german">Alemán</string>
+    <string name="urdu">Urdu</string>
+</resources>

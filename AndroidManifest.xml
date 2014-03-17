@@ -3,7 +3,7 @@
     package="mehdis.KeyAnalyser"
     android:installLocation="auto"
     android:versionCode="1"
-    android:versionName="0.98" >
+    android:versionName="0.99" >
 
     <uses-sdk android:minSdkVersion="11" android:targetSdkVersion="19" />
     <uses-feature android:name="android.hardware.camera" />
@@ -14,11 +14,14 @@
         		 android:allowBackup="true"
         		 android:icon="@drawable/launcher" >
        		<activity android:name=".KeyAnalyserActivity"
-                  android:label="@string/appName" >
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+                  android:label="@string/appName"
+                  android:screenOrientation="portrait" >
+	            <intent-filter>
+	                <action android:name="android.intent.action.MAIN" />
+	                <category android:name="android.intent.category.LAUNCHER" />
+	            </intent-filter>
+        	</activity>
+        	
+        	<activity android:name="ar.com.daidalos.afiledialog.FileChooserActivity" />
     </application>
 </manifest>

@@ -1,5 +1,8 @@
 package mehdis.Entities;
 
+import mehdis.KeyAnalyser.KeyAnalyserActivity;
+import mehdis.KeyAnalyser.R;
+
 public class Key {
 	
 	private String modelName;
@@ -13,7 +16,7 @@ public class Key {
 	}
 	
 	public Key(){
-		modelName = "No model found";
+		modelName = String.valueOf(KeyAnalyserActivity.thisContext.getText(R.string.noModelFound));
 		length = 0;
 		angle = 0; 
 	}

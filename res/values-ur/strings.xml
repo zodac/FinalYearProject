@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Basic info -->
+    <string name="appName">اہم تجزیہ</string>
+    <string name="ok">ٹھیک</string>
+    <string name="cancel">منسوخ</string>
+    <string name="info">کے لئے معلومات</string>
+    <string name="model">ماڈل</string>
+    <string name="length">لمبائی</string>
+    <string name="tipAngle">ٹپ زاویہ</string>
+    <string name="processTime">عمل کے وقت</string>
+    <string name="passes">پاس</string>
+    <string name="seconds">چلیں</string>
+    <string name="of">کے</string>
+    <string name="noModelFound">ماڈل نہیں ملا</string>
+    
+    <!-- Selection options -->
+    <string name="videoIntent">ریکارڈ کے ویڈیو</string>
+    <string name="videoProcess">ویڈیو عملدرآمد</string>
+    <string name="settings">ترتیبات</string>
+    <string name="tempFiles">تمام فائلوں کو خارج کر دیں</string>
+    <string name="tempImages">تمام تصاویر کو خارج کر دیں</string>
+    <string name="clearScreen">سکرین خالی</string>
+    <string name="clearResults">نتائج خالی</string>
+    <string name="quit">بند اہم تجزیہ</string>
+    <string name="save">نتائج کو بچانے کے</string>
+    <string name="load">لوڈ نتائج</string>
+    <string name="setLanguage">زبان تبدیل</string>
+    <string name="languageChanged">زبان تبدیل کردیا گیا ہے </string>
+    <string name="imageDesc">ماڈل</string>
+    
+    <!-- Folder names -->
+    <string name="rawImagesFolder">1_raw_images</string>
+    <string name="cannyImagesFolder">2_canny_images</string>
+    <string name="degreeImagesFolder">3_degree_images</string>
+    
+    <!-- Web access -->
+    <string name="silcaSite">https://ekc.silca.biz/ricerche_stampa_chiave.php?chiave=</string>
+    <string name="openLink">اوپن لنک - اکاؤنٹ کی ضرورت</string>
+    
+    <!-- Initial load errors -->
+    <string name="sdCardNotMounted">ایسڈی کارڈ نصب نہیں!</string>
+    <string name="noVideoFile">ویڈیو فائل نہیں!</string>
+    
+    <!-- Settings confirmation -->
+    <string name="tempFilesDeleted">تمام فائلوں کو خارج کر دیا!</string>
+    <string name="imagesDeleted">تمام تصاویر کو خارج کر دیا!</string>
+	<string name="resultsSaved">نتائج طور پر محفوظ</string>
+	<string name="resultsLoaded">نتائج بھری ہوئی</string>
+    <string name="analysisComplete">تجزیہ ھے #%d مکمل</string>
+    <string name="singleFrameCurrent">موجودہ ترتیب: ۱ فریم</string>
+    <string name="multipleFramesCurrent">موجودہ ترتیب: %s فریم</string>
+    <string name="singleFrameConfirm">۱ فریم کے لئے مقرر</string>
+    <string name="multipleFramesConfirm">%s فریم کے لئے مقرر</string>
+        
+    <!-- Errors -->
+    <string name="noFilesToDelete">خارج کرنے کے لئے نہیں فائلیں!</string>
+    <string name="nothingToClear">صاف کرنے کے لئے کچھ بھی نہیں!</string>
+    <string name="invalidResultsFile">غلط نتائج کی فائل!</string>
+    <string name="noResults">کو بچانے کے لئے نتائج نہیں!</string>
+    
+    <!-- Language options -->
+    <string name="english">انگریزی </string>
+    <string name="spanish">ہسپانوی</string>
+    <string name="french">فرانسیسی </string>
+    <string name="german">جرمن</string>
+    <string name="urdu">اردو</string>
+</resources>

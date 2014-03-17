@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Basic info -->
+    <string name="appName">KeyAnalyser</string>
+    <string name="ok">Bien</string>
+    <string name="cancel">Annular</string>
+    <string name="info">Informations sur</string>
+    <string name="model">Modéle</string>
+    <string name="length">Longueur</string>
+    <string name="tipAngle">Angle de Pointe</string>
+    <string name="processTime">Temps de processus</string>
+    <string name="passes">Passes</string>
+    <string name="seconds">secondes</string>
+    <string name="of">de</string>
+    <string name="noModelFound">N\'a trouve modéle</string>
+    
+    <!-- Selection options -->
+    <string name="videoIntent">Enregistrer Vidéo</string>
+    <string name="videoProcess">Processus Vidéo</string>
+    <string name="settings">Réglages</string>
+    <string name="tempFiles">Supprimer tous les fichiers</string>
+    <string name="tempImages">Supprimer toutes les images</string>
+    <string name="clearScreen">Éffacer l\'écran</string>
+    <string name="clearResults">Éffacer résultats</string>
+    <string name="quit">Fermer KeyAnalyser</string>
+    <string name="save">Sauver résultats</string>
+    <string name="load">Charger résultats</string>
+    <string name="setLanguage">Changer la langue</string>
+    <string name="languageChanged">Langue a changé</string>
+    <string name="imageDesc">Modéle</string>
+    
+    <!-- Folder names -->
+    <string name="rawImagesFolder">1_raw_images</string>
+    <string name="cannyImagesFolder">2_canny_images</string>
+    <string name="degreeImagesFolder">3_degree_images</string>
+    
+    <!-- Web access -->
+    <string name="silcaSite">https://ekc.silca.biz/ricerche_stampa_chiave.php?chiave=</string>
+    <string name="openLink">Lien ouvert (compte requis)</string>
+    
+    <!-- Initial load errors -->
+    <string name="sdCardNotMounted">Carte SD ne pas monté!</string>
+    <string name="noVideoFile">Aucun fichier vidéo!</string>
+    
+    <!-- Settings confirmation -->
+    <string name="tempFilesDeleted">Tous les fichiers supprimés!</string>
+    <string name="imagesDeleted">Toutes les images supprimées!</string>
+	<string name="resultsSaved">Résultats enregistre comme</string>
+	<string name="resultsLoaded">Résultats chargées</string>
+    <string name="analysisComplete">Analyse compléte de #%d</string>
+    <string name="singleFrameCurrent">Réglages actuel: 1 cadre</string>
+    <string name="multipleFramesCurrent">Réglages actuel: %s cadres</string>
+    <string name="singleFrameConfirm">Mis á 1 cadre</string>
+    <string name="multipleFramesConfirm">Mis á %s cadres</string>
+        
+    <!-- Errors -->
+    <string name="noFilesToDelete">Ne pas les fichiers á supprimer!</string>
+    <string name="nothingToClear">Rien á effacer!</string>
+    <string name="invalidResultsFile">Fichier de résultats non valide!</string>
+    <string name="noResults">Aucun résultat pour sauver!</string>
+    
+     <!-- Language options -->
+    <string name="english">Anglais</string>
+    <string name="spanish">Espagnol</string>
+    <string name="french">Français</string>
+    <string name="german">Allemand</string>
+    <string name="urdu">Ourdou</string>
+</resources>

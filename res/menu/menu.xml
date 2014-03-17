@@ -1,26 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@+id/settings"
-          android:icon="@drawable/settings"
-          android:title="@string/settings"
-          android:showAsAction="ifRoom"
-          />
-    <item android:id="@+id/clear"
-          android:icon= "@drawable/clear"
-          android:title="@string/clear"
-          android:showAsAction="ifRoom"
-          />
-    <item android:id="@+id/temp_files"
-          android:icon="@drawable/delete"
-          android:title="@string/tempFiles"
-          />
-    <item android:id="@+id/temp_images"
-          android:icon="@drawable/delete"
-          android:title="@string/tempImages"
-          />
-    <item android:id="@+id/quit"
-          android:icon="@drawable/quit"
-          android:title="@string/quit"
-          android:showAsAction="ifRoom"
-          />
+<menu xmlns:android="http://schemas.android.com/apk/res/android" >
+    <item
+        android:id="@+id/settings"
+        android:icon="@drawable/settings"
+        android:showAsAction="ifRoom"
+        android:title="@string/settings"/>
+    <item
+        android:id="@+id/clearScreen"
+        android:icon="@drawable/clear"
+        android:showAsAction="ifRoom"
+        android:title="@string/clearScreen"/>
+    <item
+        android:id="@+id/save"
+        android:icon="@drawable/save"
+        android:showAsAction="ifRoom"
+        android:title="@string/save"/>
+    <item
+        android:id="@+id/load"
+        android:icon="@drawable/load"
+        android:showAsAction="ifRoom"
+        android:title="@string/load"/>
+    <item
+        android:id="@+id/clearResults"
+        android:title="@string/clearResults"/>
+    <item
+        android:id="@+id/tempFiles"
+        android:icon="@drawable/delete"
+        android:title="@string/tempFiles"/>
+    <item
+        android:id="@+id/tempImages"
+        android:icon="@drawable/delete"
+        android:title="@string/tempImages"/>
+    <item
+        android:id="@+id/setLanguage"
+        android:title="@string/setLanguage"/>
+    <item
+        android:id="@+id/quit"
+        android:icon="@drawable/quit"
+        android:showAsAction="ifRoom"
+        android:title="@string/quit"/>
+
 </menu>

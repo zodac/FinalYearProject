@@ -59,7 +59,7 @@
     <string name="invalidResultsFile">Invalid results file!</string>
     <string name="noResults">No results to save!</string>
     
-    <!-- Language options -->
+     <!-- Language options -->
     <string name="english">English</string>
     <string name="spanish">Spanish</string>
     <string name="french">French</string>

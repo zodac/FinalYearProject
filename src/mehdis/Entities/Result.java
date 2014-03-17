@@ -1,10 +1,9 @@
 package mehdis.Entities;
 
-import java.util.Locale;
+import java.io.Serializable;
 
-import android.widget.TextView;
-
-public class Result{
+@SuppressWarnings("serial")
+public class Result implements Serializable {
 	private String modelName;
 	private double length;
 	private double angle;
@@ -14,36 +13,54 @@ public class Result{
 	
 	public Result(String modelName, double length, double angle, long runtime, int imageCount, double confidenceLevel){
 		this.modelName = modelName;
-		this.length = length;
-		this.angle = angle;
-		this.runTime = runtime;
-		this.imageCount = imageCount;
-		this.confidenceLevel = confidenceLevel;
+		this.setLength(length);
+		this.setAngle(angle);
+		this.setRunTime(runtime);
+		this.setImageCount(imageCount);
+		this.setConfidenceLevel(confidenceLevel);
 	}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
 	
 	public String getModelName(){
 		return this.modelName;
 	}
-	
-	public void setTextView(TextView resultView, TextView counterView, int currentResult, int totalResults){
-		String nameOutput = String.format(Locale.ENGLISH, "\tModel%44s (%.1f%%)", this.modelName, this.confidenceLevel);
-		String lengthOutput = String.format(Locale.ENGLISH, "%.3f", this.length) + "cm";
-		String angleOutput = String.format(Locale.ENGLISH, "%.3f", this.angle) + "°";
-		
-		if(this.modelName.equals("No model found")){
-			nameOutput = String.format(Locale.ENGLISH, "%45s (%.1f%%)", "No model found", this.confidenceLevel);
-		}
-		if(Double.isNaN(this.length) || this.length == Double.POSITIVE_INFINITY || this.length == Double.NEGATIVE_INFINITY){
-			lengthOutput = "-";
-		}
-		if(Double.isNaN(this.angle)){
-			angleOutput = "-";
-		}
-		
-		resultView.setText(nameOutput + 
-					      String.format(Locale.ENGLISH, "\n\n\tLength%45s\n\tTip Angle%40s", lengthOutput, angleOutput) + 
-					      String.format(Locale.ENGLISH, "\n\n\tProcess time%29d seconds\n\tPasses%38d", this.runTime, this.imageCount));
-		
-		counterView.setText(String.format(Locale.ENGLISH, "%46s", currentResult + " of " + totalResults));
+
+	public double getConfidenceLevel() {
+		return confidenceLevel;
+	}
+
+	public void setConfidenceLevel(double confidenceLevel) {
+		this.confidenceLevel = confidenceLevel;
+	}
+
+	public double getAngle() {
+		return angle;
+	}
+
+	public void setAngle(double angle) {
+		this.angle = angle;
+	}
+
+	public double getLength() {
+		return length;
+	}
+
+	public void setLength(double length) {
+		this.length = length;
+	}
+
+	public int getImageCount() {
+		return imageCount;
+	}
+
+	public void setImageCount(int imageCount) {
+		this.imageCount = imageCount;
+	}
+
+	public long getRunTime() {
+		return runTime;
+	}
+
+	public void setRunTime(long runTime) {
+		this.runTime = runTime;
 	}
 }

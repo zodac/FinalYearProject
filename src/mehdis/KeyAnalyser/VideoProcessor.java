@@ -3,53 +3,37 @@ package mehdis.KeyAnalyser;
 import static com.googlecode.javacv.cpp.opencv_highgui.cvLoadImage;
 
 import java.io.File;
-import java.util.Locale;
 
 import mehdis.Entities.Key;
 import mehdis.Entities.Result;
+import mehdis.Entities.Settings;
 import mehdis.Utils.FileUtilities;
-import android.content.Context;
 import android.graphics.Bitmap;
 import android.media.MediaMetadataRetriever;
 import android.os.AsyncTask;
-import android.os.Handler;
-import android.widget.ProgressBar;
 
 import com.google.common.util.concurrent.AtomicDoubleArray;
 import com.googlecode.javacv.cpp.opencv_core.IplImage;
 
-public class VideoProcesser extends AsyncTask<Void, Void, Void>{	
+public class VideoProcessor extends AsyncTask<Void, Void, Void>{	
 	private int numOfPasses;
-	private Context context;
 	private Result analysisResult;
-	private ProgressBar progressBar;
-	private Handler mHandler;
 	
-	public VideoProcesser(Context context, int numOfPasses, ProgressBar progressBar, Handler mHandler){
-		this.context = context;
+	public VideoProcessor(int numOfPasses){
 		this.numOfPasses = numOfPasses;
-		this.progressBar = progressBar;
-		this.mHandler = mHandler;
 	}
 	
 	protected Void doInBackground(Void... params) {
-		resetProgressBar();
+		KeyAnalyserActivity.resetProgressBar();
 		analysisResult = processVideo();
 		KeyAnalyserActivity.result = analysisResult;
 		return null;
-	}
-
-	private void resetProgressBar() {
-		mHandler.post(new Runnable(){
-			public void run(){
-				progressBar.setProgress(0);
-			}
-		});
 	}
 	
 	protected void onPostExecute(Void result) {
 		if(analysisResult != null){
 			KeyAnalyserActivity.saveResult();
+			KeyAnalyserActivity.resetProgressBar();
 		}
 	}
 	
@@ -64,21 +48,21 @@ public class VideoProcesser extends AsyncTask<Void, Void, Void>{
 		AtomicDoubleArray lengths = new AtomicDoubleArray(new double[numOfPasses]);
 		AtomicDoubleArray angles = new AtomicDoubleArray(new double[numOfPasses]);
 		
-		ImageProcesser[] imageProcessers = new ImageProcesser[numOfPasses];
+		ImageProcessor[] imageProcessors = new ImageProcessor[numOfPasses];
 		
 		while(extractedFrame != null && frameCounter < numOfPasses){
-			FileUtilities.writeImageToFile(extractedFrame, String.valueOf(context.getText(R.string.rawImagesFolder)), frameCounter+1);
-			IplImage imageToProcess = cvLoadImage(FileUtilities.ROOT_LOCATION + File.separator + String.valueOf(context.getText(R.string.rawImagesFolder)) + File.separator + String.format(Locale.ENGLISH, "%03d.png", frameCounter+1));	
+			FileUtilities.writeImageToFile(extractedFrame, String.valueOf(KeyAnalyserActivity.thisContext.getText(R.string.rawImagesFolder)), frameCounter+1);
+			IplImage imageToProcess = cvLoadImage(FileUtilities.ROOT_LOCATION + File.separator + String.valueOf(KeyAnalyserActivity.thisContext.getText(R.string.rawImagesFolder)) + File.separator + String.format(Settings.getSettings().getLocale(), "%03d.png", frameCounter+1));	
 			
-			imageProcessers[frameCounter] = new ImageProcesser(frameCounter, imageToProcess, lengths, angles, context, progressBar, mHandler);
-			imageProcessers[frameCounter].start();
+			imageProcessors[frameCounter] = new ImageProcessor(frameCounter, imageToProcess, lengths, angles);
+			imageProcessors[frameCounter].start();
 			
 			extractedFrame = getNextFrame(videoFile, ++frameCounter);
 		}
 		
-		for(ImageProcesser imageProcesser : imageProcessers){
+		for(ImageProcessor imageProcessor : imageProcessors){
 			try {
-				imageProcesser.join();
+				imageProcessor.join();
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
@@ -116,7 +100,7 @@ public class VideoProcesser extends AsyncTask<Void, Void, Void>{
 		Key minKey = null;
 		
 		if(length < lengthThreshold){
-			return new Result(String.valueOf(context.getText(R.string.noModelFound)), length, angle, runTime, passes, 100-confidenceLevel);
+			return new Result(String.valueOf(KeyAnalyserActivity.thisContext.getText(R.string.noModelFound)), length, angle, runTime, passes, 100-confidenceLevel);
 		}
 
 		for(Key key : KeyAnalyserActivity.databaseKeys){
@@ -133,6 +117,6 @@ public class VideoProcesser extends AsyncTask<Void, Void, Void>{
 		if(confidenceLevel <= errorThreshold){
 			return new Result(minKey.getModelName(), length, angle, runTime, passes, 100-confidenceLevel);
 		}
-		return new Result(String.valueOf(context.getText(R.string.noModelFound)), length, angle, runTime, passes, 100-confidenceLevel);
+		return new Result(String.valueOf(KeyAnalyserActivity.thisContext.getText(R.string.noModelFound)), length, angle, runTime, passes, 100-confidenceLevel);
 	}
 }

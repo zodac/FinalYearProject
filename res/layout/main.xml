@@ -26,12 +26,12 @@
     />
 
     <ImageView
-        android:id="@+id/ImageView"
+        android:id="@+id/KeyView"
         android:layout_width="wrap_content"
-        android:layout_height="255dp"
+        android:layout_height="260dp"
         android:layout_alignParentLeft="true"
         android:layout_alignParentRight="true"
-        android:layout_below="@+id/TextView"
+        android:layout_below="@+id/TitleView"
         android:contentDescription="@string/imageDesc" />
 
     <TextView
@@ -41,7 +41,7 @@
         android:layout_alignParentBottom="true"
         android:layout_alignParentLeft="true"
         android:layout_alignParentRight="true"
-        android:layout_below="@+id/ImageView"
+        android:layout_below="@+id/KeyView"
         android:textSize="17sp" />
 
     <ProgressBar
@@ -50,21 +50,33 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:max="100000"
-        android:minHeight="5dip" 
-		android:maxHeight="5dip"
-        android:background="@android:color/transparent"
         android:layout_alignParentLeft="true"
         android:layout_alignParentRight="true"
-        android:progressDrawable="@drawable/progressbar" 
         android:layout_below="@+id/VideoProcess" />
 
+     <View android:id="@+id/FakeView"
+       android:layout_width="0dp"
+       android:layout_height="0dp" 
+       android:layout_centerInParent="true"/>
+    
     <TextView
-        android:id="@+id/TextView"
+        android:id="@+id/TitleView"
         android:layout_width="wrap_content"
         android:layout_height="150dp"
         android:layout_alignParentLeft="true"
-        android:layout_alignParentRight="true"
+        android:layout_alignRight="@+id/FakeView"
         android:layout_below="@+id/ProgressBar"
+        android:textIsSelectable="true"
+        android:textSize="15sp" />
+
+    <TextView
+        android:id="@+id/ValueView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@+id/TitleView"
+        android:layout_alignLeft="@+id/FakeView"
+        android:layout_alignParentRight="true"
+        android:layout_alignTop="@+id/TitleView"
         android:textIsSelectable="true"
         android:textSize="15sp" />
 
